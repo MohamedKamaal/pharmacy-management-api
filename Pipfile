@@ -6,6 +6,13 @@ name = "pypi"
 [packages]
 django = "*"
 djangorestframework = "*"
+django-allauth = "*"
+dj-rest-auth = "*"
+djangorestframework-simplejwt = "*"
+drf-yasg = "*"
+argon2-cffi = "*"
+django-extensions = "*"
+django-debug-toolbar = "*"
 
 [dev-packages]
 
