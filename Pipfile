@@ -14,6 +14,13 @@ argon2-cffi = "*"
 django-extensions = "*"
 django-debug-toolbar = "*"
 django-mptt = "*"
+django-phonenumber-field = "*"
+phonenumbers = "*"
+django-cities-light = "*"
+django-countries = "*"
+werkzeug = "*"
+django-filter = "*"
+requests = "*"
 
 [dev-packages]
 

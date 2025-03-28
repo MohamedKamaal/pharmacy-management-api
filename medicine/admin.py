@@ -31,4 +31,4 @@ class BatchAdmin(admin.ModelAdmin):
     
 @register(ActiveIngredient)
 class ActiveIngredientAdmin(admin.ModelAdmin):
-    list_display = ('name')
+    list_display = ('name',)

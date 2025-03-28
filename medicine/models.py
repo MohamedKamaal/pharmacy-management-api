@@ -1,10 +1,13 @@
 """ medicine models """
 from django.db import models
-from mptt import MPTTModel, TreeForeignKey
+from mptt.models import MPTTModel, TreeForeignKey
 from django.core.exceptions import ValidationError
 from django.utils.timezone import now
 import random
 import string
+from phonenumber_field.modelfields import PhoneNumberField
+from cities_light.models import City
+from django_countries.fields import CountryField
 
 
 
@@ -17,7 +20,49 @@ class TimeStampedModel(models.Model):
 
     class Meta:
         abstract = True 
-        
+
+
+class Supplier(TimeStampedModel):
+    """ Supplier """
+
+    name = models.CharField(unique=True, max_length=50)
+    phone_number = PhoneNumberField(region="EG")
+    address = models.TextField()
+    city = models.ForeignKey(City, on_delete=models.CASCADE)
+
+    class Meta:
+        """Meta definition for MODELNAME."""
+
+        verbose_name = 'MODELNAME'
+        verbose_name_plural = 'MODELNAMEs'
+
+    def __str__(self):
+        """Unicode representation of MODELNAME."""
+        return str(self.name)
+
+
+class Manufacturer(TimeStampedModel):
+    """ Manufacturer """
+
+    name = models.CharField(unique=True, max_length=50)
+    phone_number = PhoneNumberField(region="EG")
+    address = models.TextField()
+    country = CountryField(blank_label="(Select country)")
+
+    city = models.ForeignKey(City, on_delete=models.CASCADE)
+    website = models.URLField(unique=True, max_length=200)
+
+    class Meta:
+        """Meta definition for MODELNAME."""
+
+        verbose_name = 'MODELNAME'
+        verbose_name_plural = 'MODELNAMEs'
+
+    def __str__(self):
+        """Unicode representation of MODELNAME."""
+        return str(self.name)
+
+
 class Category(MPTTModel):
     name = models.CharField(max_length=100, unique=True)
     parent = TreeForeignKey(
@@ -49,6 +94,9 @@ class Medicine(TimeStampedModel):
     )    
     active_ingredient = models.ForeignKey(ActiveIngredient, on_delete=models.CASCADE, related_name="medicines")
     category = models.ForeignKey(Category, on_delete=models.CASCADE, related_name="medicines")
+    manufacturer = models.ForeignKey(Manufacturer, on_delete=models.CASCADE, related_name="medicines")
+    last_supplier = models.ForeignKey(Supplier, on_delete=models.CASCADE, related_name="medicines", null=True)
+
     units_per_pack = models.IntegerField(default=1)
     price_cents = models.PositiveIntegerField(
         "price in cents",
@@ -93,7 +141,7 @@ def generate_barcode(self):
     return barcode
         
 class Batch(TimeStampedModel):
-    barcode = models.IntegerField(max_length=16,unique=True, null=True, blank=True)
+    barcode = models.CharField(max_length=16,unique=True, null=True, blank=True)
     expiry_date = models.DateField(auto_now=False, auto_now_add=False)
     medicine = models.ForeignKey(Medicine, on_delete=models.CASCADE, related_name="batches")
     stock_units = models.PositiveIntegerField(default=0)

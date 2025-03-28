@@ -1,6 +1,6 @@
 from rest_framework import permissions
 
-class IsRole(BasePermission):
+class IsRole(permissions.BasePermission):
     role = None
     def has_permission(self, request, view):
         is_authenticated = request.user.is_authenticated

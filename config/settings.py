@@ -51,6 +51,12 @@ INSTALLED_APPS = [
     'debug_toolbar',
     'django_extensions',
     'mptt',
+    'medicine',
+    'orders',
+    'phonenumber_field',
+    'cities_light', 
+    'django_countries',
+    'django_filters',
    
     
 
@@ -190,10 +196,9 @@ PASSWORD_HASHERS = [
 SITE_ID = 1  # Required for allauth
 
 # Allauth settings
-ACCOUNT_AUTHENTICATION_METHOD = 'email'  # Use email for authentication
-ACCOUNT_EMAIL_REQUIRED = True            # Email is required
+
 ACCOUNT_UNIQUE_EMAIL = True              # Email must be unique
-ACCOUNT_USERNAME_REQUIRED = False        # Username is not required
+
 ACCOUNT_USER_MODEL_USERNAME_FIELD = None # No username field
 
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
@@ -227,17 +232,12 @@ AUTHENTICATION_BACKENDS = [
 ]
 ACCOUNT_ADAPTER = 'users.adapters.CustomAccountAdapter'
 ACCOUNT_USER_MODEL_USERNAME_FIELD = None 
-# ACCOUNT_AUTHENTICATION_METHOD = "email"
 ACCOUNT_LOGIN_METHODS = {'email'}
 
-# ACCOUNT_USERNAME_REQUIRED = False
-# ACCOUNT_EMAIL_REQUIRED = True
 ACCOUNT_SIGNUP_FIELDS = ['email*', 'password1*', 'password2*']
 
 ACCOUNT_UNIQUE_EMAIL = True
-# ACCOUNT_EMAIL_VERIFICATION = "optional"
-# ACCOUNT_CONFIRM_EMAIL_ON_GET = False
-# ACCOUNT_EMAIL_CONFIRMATION_EXPIRE_DAYS = 1
+
 
 # REST Auth settings
 REST_AUTH = {
