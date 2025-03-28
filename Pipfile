@@ -13,6 +13,7 @@ drf-yasg = "*"
 argon2-cffi = "*"
 django-extensions = "*"
 django-debug-toolbar = "*"
+django-mptt = "*"
 
 [dev-packages]
 
