@@ -36,7 +36,8 @@ class Category(MPTTModel):
 
 class ActiveIngredient(TimeStampedModel):
     name = models.CharField("Active Ingredient", max_length=50, unique=True)
-    
+    def __str__(self):
+        return str(self.name)
     
     
 class Medicine(TimeStampedModel):
@@ -72,12 +73,14 @@ class Medicine(TimeStampedModel):
 
     @property
     def stock(self):
-        total = sum (
-            stock for stock in self.batches.stock_units
-            )
-        packs = total // self.units_per_pack
-        units = total % self.units_per_pack
-        return f"{packs}:{units}"
+        if self.batches:
+            total = sum (
+                stock for stock in self.batches.stock_units
+                )
+            packs = total // self.units_per_pack
+            units = total % self.units_per_pack
+            return f"{packs}:{units}"
+        return 0
 
 
 import secrets

@@ -1,12 +1,19 @@
-from rest_framework.permissions import BasePermission
+from rest_framework import permissions
 
 class IsRole(BasePermission):
     role = None
     def has_permission(self, request, view):
         is_authenticated = request.user.is_authenticated
-        is_role = getattr(request.user, "role",None) == self.role
-        return is_authenticated and is_role
+        return is_authenticated 
+
+    def has_object_permission(self, request, view, obj):
         
+        if request in permissions.SAFE_METHODS:
+            return True 
+        else:
+            is_role = getattr(request.user, "role",None) == self.role
+
+            return is_role
         
 class IsPharmacist(IsRole):
     role = "pharmacist"
