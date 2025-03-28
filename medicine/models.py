@@ -5,6 +5,7 @@ from django.core.exceptions import ValidationError
 from django.utils.timezone import now
 import random
 import string
+from orders.models import Supplier, Manufacturer
 
 
 
@@ -48,6 +49,9 @@ class Medicine(TimeStampedModel):
     )    
     active_ingredient = models.ForeignKey(ActiveIngredient, on_delete=models.CASCADE, related_name="medicines")
     category = models.ForeignKey(Category, on_delete=models.CASCADE, related_name="medicines")
+    manufacturer = models.ForeignKey(Manufacturer, on_delete=models.CASCADE, related_name="medicines")
+    last_supplier = models.ForeignKey(Supplier, on_delete=models.CASCADE, related_name="medicines", null=True)
+
     units_per_pack = models.IntegerField(default=1)
     price_cents = models.PositiveIntegerField(
         "price in cents",

@@ -51,6 +51,10 @@ INSTALLED_APPS = [
     'debug_toolbar',
     'django_extensions',
     'mptt',
+    'orders',
+    'phonenumber_field',
+    'cities_light', 
+    'django_countries',
    
     
 
