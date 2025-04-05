@@ -57,6 +57,7 @@ INSTALLED_APPS = [
     'cities_light', 
     'django_countries',
     'django_filters',
+    'sales',
    
     
 
