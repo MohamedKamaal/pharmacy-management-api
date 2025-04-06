@@ -13,7 +13,7 @@ class IsRole(permissions.BasePermission):
         else:
             is_role = getattr(request.user, "role",None) == self.role
 
-            return is_role
+            return is_role or request.user.role == "admin"
         
 class IsPharmacist(IsRole):
     role = "pharmacist"

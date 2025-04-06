@@ -18,11 +18,7 @@ class UserSerializer(serializers.ModelSerializer):
         model = User
         fields = ["id","email","first_name","last_name","gender","phone_number","city","photo","country"]
     
-    def to_representation(self, instance):
-        representation = super(UserSerializer,self).to_representation(instance=instance)
-        if instance.is_superuser:
-            representation["admin"]=True
-        return representation
+    
     
     
 class CustomRegisterSerializer(RegisterSerializer):

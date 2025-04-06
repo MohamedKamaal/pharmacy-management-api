@@ -31,7 +31,8 @@ class CustomUserManager(BaseUserManager):
         """Create an admin with all permissions"""
         extra_fields.setdefault("is_staff", True)
         extra_fields.setdefault("is_superuser", True)
-        return self._create_user(email, password, **extra_fields)
+
+        return self._create_user(email, password,role="admin", **extra_fields)
 
 
 class User(AbstractUser):
@@ -43,11 +44,12 @@ class User(AbstractUser):
         ACCOUNTANT = ("accountant", "Accountant")
         PHARMACIST = ("pharmacist", "Pharmacist")
         CASHIER = ("cashier", "Cashier")
+        ADMIN = ("admin", "Admin")
 
-    role = models.CharField("Role", max_length=20, choices=Role.choices, default=Role.CASHIER)
+    role = models.CharField("Role", max_length=20, choices=Role.choices)
 
     USERNAME_FIELD = "email"  # Use email for authentication
-    REQUIRED_FIELDS = ["role"]  # Fields required when creating users
+    REQUIRED_FIELDS = []  # Fields required when creating users
 
     objects = CustomUserManager()
 
