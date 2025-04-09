@@ -1,5 +1,6 @@
 """ add medicine , edit medicine ,remove medicine , list medicines, search for medicine """
 from django.shortcuts import render, get_object_or_404
+
 from users.permissions import IsPharmacist
 from medicine.models import Medicine, Batch
 from medicine.serializers import MedicineInSerializer, MedicineOutSerializer, BatchInSerializer, BatchOutSerializer
@@ -8,10 +9,11 @@ from medicine.paginations import MedicinePagination
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.filters import SearchFilter
+from django.http import Http404
 
 # Create your views here.
 
-class MedicineListAPIView(generics.ListCreateAPIView):
+class MedicineListCreateAPIView(generics.ListCreateAPIView):
     filter_backends = [SearchFilter]
     search__fields = ['name','active_ingredient','category']
     permission_classes = [IsPharmacist]
@@ -20,7 +22,7 @@ class MedicineListAPIView(generics.ListCreateAPIView):
 
     def get_serializer_class(self) -> MedicineOutSerializer | MedicineInSerializer:
         if self.request.method == "GET":
-            return MedicineInSerializer
+            return MedicineOutSerializer
         else:
             return MedicineInSerializer
     
@@ -61,8 +63,8 @@ class SimilarMedicinesAPIView(generics.GenericAPIView):
         )
 
 
-class MedicineBatchesListAPIView(generics.ListCreateAPIView):
-    "list all medcine batches"
+class MedicineBatchesListCreateAPIView(generics.ListCreateAPIView):
+    "list / create all medicine batches"
     permission_classes = [IsPharmacist]
     pagination_class = MedicinePagination
     
@@ -95,5 +97,20 @@ class BatchRetrieveUpdateDestroyAPIView(generics.RetrieveUpdateDestroyAPIView):
         else:
             return BatchInSerializer
     
-    queryset = Batch.objects.all()
-    
+    def get_object(self):
+        med_id = self.kwargs.get("medicine_id")
+        batch_id = self.kwargs.get("batch_id")
+
+        obj = get_object_or_404(
+            Batch,
+            id=batch_id
+        )
+        if obj.medicine.id == med_id:
+            return obj
+        raise Http404("Batch does not belong to the specified medicine.")
+
+    def perform_update(self, serializer):
+        med_id = self.kwargs.get("medicine_id")
+        medicine = get_object_or_404(Medicine, id=med_id)
+        serializer.save(medicine=medicine)
+  

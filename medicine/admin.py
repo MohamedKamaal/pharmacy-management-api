@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.contrib.admin import register
 from mptt.admin import MPTTModelAdmin
-from .models import Category, Medicine, Batch, ActiveIngredient
+from .models import Category, Medicine, Batch, ActiveIngredient, Supplier, Manufacturer
 
 @register(Category)
 class CategoryAdmin(MPTTModelAdmin):
@@ -32,3 +32,15 @@ class BatchAdmin(admin.ModelAdmin):
 @register(ActiveIngredient)
 class ActiveIngredientAdmin(admin.ModelAdmin):
     list_display = ('name',)
+    
+@register(Supplier)
+class SupplierAdmin(admin.ModelAdmin):
+    list_display = ['name', 'phone_number', 'city']
+    search_fields = ['name', 'phone_number']
+    list_filter = ['city']
+
+@admin.register(Manufacturer)
+class ManufacturerAdmin(admin.ModelAdmin):
+    list_display = ['name', 'phone_number', 'country', 'website']
+    search_fields = ['name', 'phone_number', 'website']
+    list_filter = ['country',]

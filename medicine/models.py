@@ -26,18 +26,18 @@ class Supplier(TimeStampedModel):
     """ Supplier """
 
     name = models.CharField(unique=True, max_length=50)
-    phone_number = PhoneNumberField(region="EG")
-    address = models.TextField()
+    phone_number = PhoneNumberField(region="EG",null=True, blank=True)
+    address = models.TextField(null=True, blank=True)
     city = models.ForeignKey(City, on_delete=models.CASCADE)
 
     class Meta:
         """Meta definition for MODELNAME."""
 
-        verbose_name = 'MODELNAME'
-        verbose_name_plural = 'MODELNAMEs'
+        verbose_name = 'Supplier'
+        verbose_name_plural = 'Suppliers'
 
     def __str__(self):
-        """Unicode representation of MODELNAME."""
+        
         return str(self.name)
 
 
@@ -45,18 +45,16 @@ class Manufacturer(TimeStampedModel):
     """ Manufacturer """
 
     name = models.CharField(unique=True, max_length=50)
-    phone_number = PhoneNumberField(region="EG")
-    address = models.TextField()
     country = CountryField(blank_label="(Select country)")
-
-    city = models.ForeignKey(City, on_delete=models.CASCADE)
-    website = models.URLField(unique=True, max_length=200)
+    phone_number = PhoneNumberField(null=True, blank=True)
+    address = models.TextField(null=True, blank=True)
+    website = models.URLField(null=True, blank=True,unique=True, max_length=200)
 
     class Meta:
         """Meta definition for MODELNAME."""
 
-        verbose_name = 'MODELNAME'
-        verbose_name_plural = 'MODELNAMEs'
+        verbose_name = 'Manufacturer'
+        verbose_name_plural = 'Manufacturer'
 
     def __str__(self):
         """Unicode representation of MODELNAME."""
@@ -92,10 +90,11 @@ class Medicine(TimeStampedModel):
         unique=True,
         db_index=True
     )    
+    name = models.CharField(unique=True, max_length=50)
     active_ingredient = models.ForeignKey(ActiveIngredient, on_delete=models.CASCADE, related_name="medicines")
     category = models.ForeignKey(Category, on_delete=models.CASCADE, related_name="medicines")
     manufacturer = models.ForeignKey(Manufacturer, on_delete=models.CASCADE, related_name="medicines")
-    last_supplier = models.ForeignKey(Supplier, on_delete=models.CASCADE, related_name="medicines", null=True)
+    last_supplier = models.ForeignKey(Supplier, on_delete=models.CASCADE, related_name="medicines", null=True, blank=True)
 
     units_per_pack = models.IntegerField(default=1)
     price_cents = models.PositiveIntegerField(
@@ -110,11 +109,7 @@ class Medicine(TimeStampedModel):
         blank=True,
         help_text="Percentage discount you got when last purchasing this medicine."
     )
-    def clean_price_cents(self, value):
-        if value <= 0:
-            raise ValidationError(
-                "Price can't be negative or zero"
-            )
+   
     @property
     def price(self):
         return self.price_cents / 100
@@ -123,17 +118,18 @@ class Medicine(TimeStampedModel):
     def stock(self):
         if self.batches:
             total = sum (
-                stock for stock in self.batches.stock_units
+                batch.stock_units for batch in self.batches.all()
                 )
             packs = total // self.units_per_pack
             units = total % self.units_per_pack
             return f"{packs}:{units}"
         return 0
 
-
+    def __str__(self):
+        return self.name
 import secrets
 
-def generate_barcode(self):
+def generate_barcode():
     """Generate a cryptographically secure 16-digit unique barcode"""
    
     barcode = ''.join(secrets.choice(string.digits) for _ in range(16))
@@ -142,17 +138,19 @@ def generate_barcode(self):
         
 class Batch(TimeStampedModel):
     barcode = models.CharField(max_length=16,unique=True, null=True, blank=True)
-    expiry_date = models.DateField(auto_now=False, auto_now_add=False)
+    expiry_date = models.DateField(auto_now=False, auto_now_add=False, editable=False)
     medicine = models.ForeignKey(Medicine, on_delete=models.CASCADE, related_name="batches")
     stock_units = models.PositiveIntegerField(default=0)
     class Meta:
         unique_together = ["expiry_date","medicine"]
     
-    def clean_expiry_date(self, value):
-        if value <= now():
-            raise ValidationError(
-                "this is not a valid date"
-            )
+    def __str__(self):
+        return f"{self.medicine.name}-{self.expiry_date}"
+
+    def clean(self):
+        super().clean()
+        if self.expiry_date <= now().date():
+            raise ValidationError({"expiry_date": "This is not a valid date"})
     
             
     @property
@@ -163,11 +161,12 @@ class Batch(TimeStampedModel):
     
     def save(self, *args, **kwargs):
         """ save unique barcode """
-        barcode = generate_barcode()
-        while Batch.objects.filter(
-            barcode=barcode
-        ).exists():
+        if not self.barcode:
             barcode = generate_barcode()
-        self.barcode = barcode
+            while Batch.objects.filter(
+                barcode=barcode
+            ).exists():
+                barcode = generate_barcode()
+            self.barcode = barcode
 
         return super().save( *args, **kwargs)
