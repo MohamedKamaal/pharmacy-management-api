@@ -16,10 +16,12 @@ class SupplierFactory(factory.django.DjangoModelFactory):
     address = factory.Faker('address')
     @factory.lazy_attribute
     def city(self):
-        cities_ids = City.objects.values_list("id",flat=True)
-        return City.objects.get(id=random.choice(list(cities_ids)))
-    
-
+        cities_ids = list(City.objects.values_list("id", flat=True))
+        if cities_ids:
+            return City.objects.get(id=random.choice(cities_ids))
+        else:
+            city= None
+        
     @factory.lazy_attribute
     def phone_number(self):
         prefix = random.choice(EGYPT_MOBILE_PREFIXES)

@@ -7,7 +7,7 @@ class OrderItemInline(admin.StackedInline):
     extra = 1  # Number of empty forms shown by default
     readonly_fields = ['price_item', 'price_item_after']  # Optional, show calculated fields
 
-# Manufacturer admin
+
 
 # Order admin with inline OrderItem
 @admin.register(Order)
@@ -15,3 +15,6 @@ class OrderAdmin(admin.ModelAdmin):
     list_display = ['id', 'supplier', 'total_before', 'total_after', 'created', 'modified']
     inlines = [OrderItemInline]
     readonly_fields = ['total_before', 'total_after']
+    inlines = [OrderItemInline]
+
+admin.site.register(OrderItem)

@@ -28,7 +28,7 @@ class Supplier(TimeStampedModel):
     name = models.CharField(unique=True, max_length=50)
     phone_number = PhoneNumberField(region="EG",null=True, blank=True)
     address = models.TextField(null=True, blank=True)
-    city = models.ForeignKey(City, on_delete=models.CASCADE)
+    city = models.ForeignKey(City, on_delete=models.CASCADE, blank=True, null=True)
 
     class Meta:
         """Meta definition for MODELNAME."""
@@ -114,6 +114,13 @@ class Medicine(TimeStampedModel):
     def price(self):
         return self.price_cents / 100
 
+    @property
+    def unit_price(self):
+        return self.price / self.unit_price_cents
+    
+    @property
+    def unit_price_cents(self):
+        return self.price_cents / self.units_per_pack
     @property
     def stock(self):
         if self.batches:

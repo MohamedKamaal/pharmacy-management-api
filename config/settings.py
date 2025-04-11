@@ -172,8 +172,14 @@ LOGGING = {
             "level": "DEBUG",
             "propagate": True,
         },
+        "django.db.backends.schema": {
+            "handlers": [],
+            "level": "WARNING",
+            "propagate": False,
+        },
     },
 }
+
 
 
 PASSWORD_HASHERS = [
