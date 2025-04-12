@@ -170,7 +170,7 @@ class Batch(TimeStampedModel):
         return self.medicine.unit_price
     @property 
     def is_expired(self):
-        return self.expiry_date > now().date()
+        return self.expiry_date <= now().date()
     @property 
     def has_amount(self):
         return self.stock_units >0

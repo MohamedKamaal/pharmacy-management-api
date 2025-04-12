@@ -1,86 +1,153 @@
 import pytest
-from rest_framework.test import APIClient
+from decimal import Decimal
 from django.urls import reverse
-from orders.models import Order
-from medicine.tests.factories import MedicineFactory, SupplierFactory
-from orders.tests.factories import OrderFactory, OrderItemFactory
+from rest_framework.test import APIClient
 from rest_framework import status
+from sales.models import Invoice, SaleItem
 from users.tests.factories import UserFactory
+from sales.tests.factories import InvoiceFactory, SaleItemFactory
+from medicine.tests.factories import BatchFactory
+from datetime import timedelta
+from django.utils import timezone
 
+@pytest.fixture
+def pharmacist_user():
+    return UserFactory(role="pharmacist")
+
+@pytest.fixture
+def auth_client(pharmacist_user):
+    client = APIClient()
+    client.force_authenticate(user=pharmacist_user)
+    return client
 
 @pytest.mark.django_db
-class TestOrderAPI:
-    def setup_method(self):
-        self.client = APIClient()
-        self.user = UserFactory(role="pharmacist")
-        self.client.force_authenticate(user=self.user)
-        self.supplier = SupplierFactory()
+def test_create_invoice(auth_client):
+    batch = BatchFactory(stock_units=10)
 
-    def test_create_order(self):
-        med1 = MedicineFactory(units_per_pack=2)
-        med2 = MedicineFactory(units_per_pack=3)
+    data = {
+        "items": [{"barcode": batch.barcode, "quantity": 2}],
+        "payment_status": "paid",
+        "discount_percentage": "10.00",
+    }
 
-        url = reverse("order-list")
+    url = reverse("invoice-list")
+    response = auth_client.post(url, data, format="json")
 
-        payload = {
-            "supplier": self.supplier.id,
-            "items": [
-                {
-                    "medicine": med1.name,
-                    "packs": 2,
-                    "units": 1,
-                    "discount": 5.00,
-                    "expiry_date": "2027-10"
-                },
-                {
-                    "medicine": med2.name,
-                    "packs": 1,
-                    "units": 0,
-                    "discount": 10.00,
-                    "expiry_date": "2027-11"
-                }
-            ]
-        }
+    assert response.status_code == 201
+    assert Invoice.objects.count() == 1
+    assert SaleItem.objects.count() == 1
 
-        response = self.client.post(url, payload, format="json")
+@pytest.mark.django_db
+def test_list_invoices(auth_client):
+    InvoiceFactory.create_batch(3)
 
-        assert response.status_code == status.HTTP_201_CREATED
-        assert Order.objects.count() == 1
-        assert Order.objects.first().items.count() == 2
+    url = reverse("invoice-list")
+    response = auth_client.get(url)
 
-    def test_list_orders(self):
-        OrderFactory.create_batch(3)
+    assert response.status_code == 200
+    assert len(response.data) >= 3
 
-        url = reverse("order-list")
-        response = self.client.get(url)
+@pytest.mark.django_db
+def test_retrieve_invoice(auth_client):
+    invoice = InvoiceFactory()
+    url = reverse("invoice-detail", kwargs={"pk": invoice.id})  # Corrected kwargs
+    response = auth_client.get(url)
 
-        assert response.status_code == status.HTTP_200_OK
-        assert len(response.data) == 3
+    assert response.status_code == 200
+    assert response.data["id"] == invoice.id
 
-    def test_retrieve_order(self):
-        order = OrderFactory()
-        url = reverse("order-detail", args=[order.id])
+@pytest.mark.django_db
+def test_update_invoice(auth_client):
+    invoice = InvoiceFactory(discount_integer=500)
+    old_item = SaleItemFactory(invoice=invoice, quantity=1)
+    batch = BatchFactory(stock_units=10)
 
-        response = self.client.get(url)
+    data = {
+        "items": [{"barcode": batch.barcode, "quantity": 4}],
+        "payment_status": "partially_paid",
+        "discount_percentage": "15.00"
+    }
 
-        assert response.status_code == status.HTTP_200_OK
-       
-    def test_update_order_supplier(self):
-        order = OrderFactory()
-        new_supplier = SupplierFactory()
+    url = reverse("invoice-detail", kwargs={"pk": invoice.id})  # Corrected kwargs
+    response = auth_client.patch(url, data)
 
-        url = reverse("order-detail", args=[order.id])
-        response = self.client.patch(url, {"supplier": new_supplier.id}, format="json")
+    assert response.status_code == 200
+    invoice.refresh_from_db()
+    assert invoice.discount_integer == 1500
+    assert invoice.payment_status == "partially_paid"
+    assert invoice.sales_items.count() == 1
+    assert invoice.sales_items.first().batch == batch
 
-        assert response.status_code == status.HTTP_200_OK
-        order.refresh_from_db()
-        assert order.supplier.id == new_supplier.id
+@pytest.mark.django_db
+def test_delete_invoice(auth_client):
+    invoice = InvoiceFactory()
+    url = reverse("invoice-detail", kwargs={"pk": invoice.id})  # Corrected kwargs
+    response = auth_client.delete(url)
 
-    def test_delete_order(self):
-        order = OrderFactory()
-        url = reverse("order-detail", args=[order.id])
+    assert response.status_code == 204
+    assert not Invoice.objects.filter(id=invoice.id).exists()
 
-        response = self.client.delete(url)
+@pytest.mark.django_db
+def test_unauthenticated_user_cannot_access():
+    client = APIClient()
+    url = reverse("invoice-list")
+    response = client.get(url)
+    assert response.status_code in [401, 403]
 
-        assert response.status_code == status.HTTP_204_NO_CONTENT
-        assert Order.objects.filter(id=order.id).count() == 0
+@pytest.mark.django_db
+def test_create_invoice_with_empty_items(auth_client):
+    data = {
+        "items": [],
+        "payment_status": "paid",
+        "discount_percentage": "5.00"
+    }
+    url = reverse("invoice-list")
+    response = auth_client.post(url, data)
+
+    assert response.status_code == 400
+    assert "items" in response.data
+
+@pytest.mark.django_db
+def test_create_invoice_with_invalid_barcode(auth_client):
+    data = {
+        "items": [{"barcode": "nonexistent-barcode", "quantity": 1}],
+        "payment_status": "paid",
+        "discount_percentage": "0.00"
+    }
+    url = reverse("invoice-list")
+    response = auth_client.post(url, data, format="json")
+
+    assert response.status_code == 400
+    assert "barcode" in str(response.data)
+
+@pytest.mark.django_db
+def test_create_invoice_with_quantity_exceeding_stock(auth_client):
+    batch = BatchFactory(stock_units=2)
+
+    data = {
+        "items": [{"barcode": batch.barcode, "quantity": 5}],  # more than available
+        "payment_status": "paid",
+        "discount_percentage": "0.00"
+    }
+
+    url = reverse("invoice-list")
+    response = auth_client.post(url, data)
+
+    assert response.status_code == 400
+    assert "quantity" in str(response.data)
+
+@pytest.mark.django_db
+def test_create_invoice_with_expired_batch(auth_client):
+    expired_batch = BatchFactory(expiry_date=timezone.now().date() - timedelta(days=1), stock_units=10)
+
+    data = {
+        "items": [{"barcode": expired_batch.barcode, "quantity": 1}],
+        "payment_status": "paid",
+        "discount_percentage": "0.00"
+    }
+
+    url = reverse("invoice-list")
+    response = auth_client.post(url, data)
+
+    assert response.status_code == 400
+    assert "expired" in str(response.data).lower()

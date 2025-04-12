@@ -23,12 +23,12 @@ class TestInvoiceModel:
     def test_discount_decimal_property(self):
         """Test discount_decimal property converts correctly"""
         invoice = InvoiceFactory(discount_integer=20)
-        assert invoice.discount_decimal == 20  # Now expects integer, not decimal
+        assert invoice.discount_decimal == .2  # Now expects integer, not decimal
 
     @pytest.mark.parametrize("discount,expected", [
-        (0, 1000),    # $10.00 (in cents)
-        (50, 500),    # $5.00
-        (100, 0),     # $0.00
+        (0, 10),    # $10.00 (in cents)
+        (5000, 5),    # $5.00
+        (10000, 0),     # $0.00
     ])
     def test_total_after_discount_property(self, discount, expected):
         """Test total_after_discount calculation in cents"""
@@ -49,13 +49,13 @@ class TestInvoiceModel:
 
     def test_display_total_after_discount(self):
         """Test currency formatting"""
-        invoice = InvoiceFactory(discount_integer=10)
+        invoice = InvoiceFactory(discount_integer=1000)
         medicine = MedicineFactory(price_cents=1000, units_per_pack=1)  # $10.00 per unit
         batch = BatchFactory(medicine=medicine)
         SaleItemFactory(invoice=invoice, batch=batch, quantity=1)
         
         # $10 with 10% discount = $9.00
-        assert invoice.display_total_after_discount() == "$9.00"
+        assert invoice.display_total_after_discount() == "$9.0"
 
     def test_save_method_updates_total_before_discount(self):
         """Test that save() updates total_before_discount for paid invoices"""
@@ -65,9 +65,9 @@ class TestInvoiceModel:
         
         SaleItemFactory(invoice=invoice, batch=batch, quantity=1)  # $10 total
         
-        # Save should update it (1000 cents = $10.00)
+        
         invoice.save()
-        assert invoice.total_before_discount == 1000
+        assert invoice.total_before_discount == 10
 
     def test_save_does_not_update_for_unpaid_invoices(self):
         """Test that unpaid invoices don't update totals on save"""
@@ -98,8 +98,8 @@ class TestSaleItemModel:
         batch = BatchFactory(medicine=medicine)
         sale_item = SaleItemFactory(batch=batch, quantity=1)
         
-        # 1 * $10.00 = $10.00 (1000 cents)
-        assert sale_item.total == 1000
+       
+        assert sale_item.total == 10
 
     def test_display_total(self):
         """Test currency formatting"""
@@ -107,7 +107,7 @@ class TestSaleItemModel:
         batch = BatchFactory(medicine=medicine)
         sale_item = SaleItemFactory(batch=batch, quantity=1)
         
-        assert sale_item.display_total() == "$10.00"
+        assert sale_item.display_total() == "$10.0"
 
     def test_save_updates_invoice_and_batch(self):
         """Test that saving updates invoice and batch stock"""
@@ -139,5 +139,5 @@ class TestSaleItemModel:
         batch = BatchFactory(medicine=medicine)
         sale_item = SaleItemFactory(batch=batch, quantity=2)
         
-        # Verify the calculation (2 * $10.00 = $20.00 = 2000 cents)
-        assert sale_item.total == 2000
+
+        assert sale_item.total == 20

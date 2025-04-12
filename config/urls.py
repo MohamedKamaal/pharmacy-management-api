@@ -11,9 +11,9 @@ from drf_yasg import openapi
 from drf_yasg.views import get_schema_view
 from rest_framework import permissions
 from dj_rest_auth.views import PasswordResetConfirmView
-from django.conf import settings
-from django.urls import include, path
-import orders 
+
+
+import orders , sales
 
 # Schema view configuration
 schema_view = get_schema_view(
@@ -37,6 +37,7 @@ urlpatterns = [
     path("api/v1/medicine/", include("medicine.urls")),
 
     path("api/v1/orders/", include("orders.urls")),
+    path("api/v1/sales/", include("sales.urls")),
 
     path("api/v1/auth/", include("dj_rest_auth.urls")),
     path("api/v1/auth/registration/", include("dj_rest_auth.registration.urls")),

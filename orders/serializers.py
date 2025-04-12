@@ -65,7 +65,7 @@ class OrderItemSerializer(serializers.ModelSerializer):
 
 
 class OrderCreationSerializer(serializers.ModelSerializer):
-    items = OrderItemSerializer(many=True)
+    items = OrderItemSerializer(many=True, allow_empty=False)
 
     class Meta:
         model = Order

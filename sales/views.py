@@ -5,7 +5,7 @@ from sales.models import Invoice, SaleItem
 from sales.serializers import InvoiceCreationSerializer
 from users.permissions import IsPharmacist
 from django_filters.rest_framework import DjangoFilterBackend
-from orders.filters import InvoiceFilter
+from sales.filters import InvoiceFilter
 # Create your views here.
 
 class InvoiceListCreateAPIView(generics.ListCreateAPIView):

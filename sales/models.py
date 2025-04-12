@@ -46,7 +46,7 @@ class Invoice(TimeStampedModel):
 
     def display_total_after_discount(self):
         """Format the integer value as decimal currency"""
-        return f"${self.total_after_discount / 100:.2f}"
+        return f"${self.total_after_discount}"
 
     def __str__(self):
         return f"Invoice #{self.pk} - {self.display_total_after_discount()}"

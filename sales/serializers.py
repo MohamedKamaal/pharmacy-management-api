@@ -39,7 +39,7 @@ class SaleItemSerializer(serializers.ModelSerializer):
         
         data["batch"] = batch
 
-        return super().validate(data=data)
+        return super().validate(data)
     def create(self, validated_data):
         validated_data.pop("barcode")
          
@@ -50,7 +50,7 @@ class SaleItemSerializer(serializers.ModelSerializer):
 
 
 class InvoiceCreationSerializer(serializers.ModelSerializer):
-    items = SaleItemSerializer(many=True)
+    items = SaleItemSerializer(many=True, allow_empty=False)
     discount_percentage = serializers.DecimalField(
         max_digits=4, decimal_places=2, write_only=True
     )
