@@ -1,8 +1,8 @@
 import django_filters
-from orders.models import Order
+from sales.models import Invoice
 from django.db import models
 
-class OrderFilter(django_filters.FilterSet):
+class InvoiceFilter(django_filters.FilterSet):
     # Date range filters
     created_at_gte = django_filters.DateFilter(
         field_name='created', 
@@ -36,7 +36,7 @@ class OrderFilter(django_filters.FilterSet):
     )
 
     class Meta:
-        model = Order
+        model = Invoice()
         fields = {
             'created': ['exact', 'gte', 'lte'],
         }

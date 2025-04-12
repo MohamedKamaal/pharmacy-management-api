@@ -116,7 +116,7 @@ class Medicine(TimeStampedModel):
 
     @property
     def unit_price(self):
-        return self.price / self.unit_price_cents
+        return self.price / self.units_per_pack
     
     @property
     def unit_price_cents(self):
@@ -145,7 +145,7 @@ def generate_barcode():
         
 class Batch(TimeStampedModel):
     barcode = models.CharField(max_length=16,unique=True, null=True, blank=True)
-    expiry_date = models.DateField(auto_now=False, auto_now_add=False, editable=False)
+    expiry_date = models.DateField(auto_now=False, auto_now_add=False)
     medicine = models.ForeignKey(Medicine, on_delete=models.CASCADE, related_name="batches")
     stock_units = models.PositiveIntegerField(default=0)
     class Meta:
@@ -156,10 +156,24 @@ class Batch(TimeStampedModel):
 
     def clean(self):
         super().clean()
-        if self.expiry_date <= now().date():
+        if self.expiry_date and self.expiry_date <= now().date():
             raise ValidationError({"expiry_date": "This is not a valid date"})
-    
-            
+        
+        if self.stock_units <= 0:
+            raise ValidationError({"stock_units": "stock units must be greater than zero"})
+
+    @property 
+    def price_cents(self):
+        return self.medicine.unit_price_cents
+    @property 
+    def price(self):
+        return self.medicine.unit_price
+    @property 
+    def is_expired(self):
+        return self.expiry_date > now().date()
+    @property 
+    def has_amount(self):
+        return self.stock_units >0
     @property
     def stock_packets(self):
         packs = self.stock_units // self.medicine.units_per_pack
