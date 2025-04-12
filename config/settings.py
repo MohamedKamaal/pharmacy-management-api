@@ -48,6 +48,8 @@ INSTALLED_APPS = [
     'django_countries',
     'django_filters',
     'sales',
+    'returns',
+    'reports',
    
     
 

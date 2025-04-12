@@ -13,7 +13,7 @@ from rest_framework import permissions
 from dj_rest_auth.views import PasswordResetConfirmView
 
 
-import orders , sales
+import orders , sales, reports
 
 # Schema view configuration
 schema_view = get_schema_view(
@@ -38,6 +38,7 @@ urlpatterns = [
 
     path("api/v1/orders/", include("orders.urls")),
     path("api/v1/sales/", include("sales.urls")),
+     path('api/v1/reports/', include('reports.urls')),  # Include the reports app URLs
 
     path("api/v1/auth/", include("dj_rest_auth.urls")),
     path("api/v1/auth/registration/", include("dj_rest_auth.registration.urls")),
