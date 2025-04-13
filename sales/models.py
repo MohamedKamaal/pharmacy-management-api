@@ -1,9 +1,10 @@
 from django.db import models
 from medicine.models import Medicine, TimeStampedModel, Batch
+from django.core.validators import MinValueValidator
+from decimal import Decimal
 
 class Invoice(TimeStampedModel):
     PAYMENT_STATUS = [
-        ('unpaid', 'Unpaid'),
         ('paid', 'Paid'),
         ('refunded', 'Refunded'),
     ]
@@ -12,9 +13,15 @@ class Invoice(TimeStampedModel):
         choices=PAYMENT_STATUS,
         default='paid'
     )
-    discount_integer = models.PositiveSmallIntegerField()
-    total_before_discount = models.PositiveBigIntegerField(
-        editable=False,
+    discount= models.DecimalField(
+        max_digits=4,
+        decimal_places=2,
+        validators=[MinValueValidator(0)]
+    )
+    total_before_discount = models.DecimalField(
+        max_digits=8,
+        decimal_places=2,
+        validators=[MinValueValidator(0)],
         default=0
     )
     
@@ -24,16 +31,14 @@ class Invoice(TimeStampedModel):
         verbose_name_plural = "Invoices"
         ordering = ['-created']  
 
-    @property
-    def discount_decimal(self):
-        return self.discount_integer / 100 
+    
     @property
     def total_after_discount(self):
         """Calculate total after applying discount (in cents)"""
         amount = sum(
             item.total for item in self.sales_items.all()
         )
-        total = amount * (1-(self.discount_decimal/100))
+        total = amount * (1-(self.discount/100))
         return total
 
     def save(self, *args, **kwargs):
@@ -42,6 +47,9 @@ class Invoice(TimeStampedModel):
             self.total_before_discount = sum(
                 item.total for item in self.sales_items.all()
             )
+        if self.payment_status == "refunded":
+            for item in self.items.all():
+                item.batch.stock_units += self.item.quantity
         super().save(*args, **kwargs)
 
     def display_total_after_discount(self):
@@ -75,7 +83,7 @@ class SaleItem(models.Model):
     @property
     def total(self):
         """Calculate line item total in cents"""
-        return (self.batch.medicine.unit_price_cents * self.quantity) /100
+        return Decimal((self.batch.medicine.unit_price_cents * self.quantity) /100)
 
     def display_total(self):
         """Format the integer value as decimal currency"""

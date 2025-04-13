@@ -106,3 +106,17 @@ class InvoiceCreationSerializer(serializers.ModelSerializer):
             
         return super().update(instance, validated_data)
 
+class ReturnInvoiceSerializer(serializers.Serializer):
+    invoice = serializers.CharField(
+        write_only=True
+    )
+    
+    
+    def validate_invoice(self, value):
+   
+        try:
+            invoice = Invoice.objects.get(id=value)
+            return invoice
+        except Invoice.DoesNotExist:
+            raise serializers.ValidationError("This is not a valid invoice ID.")
+

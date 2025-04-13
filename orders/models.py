@@ -1,15 +1,20 @@
 
 from django.db import models
 from medicine.models import TimeStampedModel
-
+from django.core.validators import MinValueValidator, MaxValueValidator
 from medicine.models import Medicine, Batch, Supplier, Manufacturer
-
+from decimal import Decimal
 # Create your models here.
 
 
 class Order(TimeStampedModel):
     supplier = models.ForeignKey(Supplier, on_delete=models.CASCADE, related_name="orders")
-    total_after = models.IntegerField(null=True, blank=True)
+    total_after = models.DecimalField(
+        max_digits=8,
+        decimal_places=2,
+        default=0,
+        validators=[MinValueValidator(0)]
+    )
     
     def save(self, *args, **kwargs):
         
@@ -26,27 +31,31 @@ class Order(TimeStampedModel):
         return sum(
            item.price_item for item in self.items.all()
        )
+        
+    
 
 class OrderItem(models.Model):
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name="items")
     batch = models.ForeignKey(Batch, on_delete=models.CASCADE, related_name="items")
     quantity = models.IntegerField()
-    discount_integer = models.PositiveSmallIntegerField()
+    discount = models.DecimalField(
+        max_digits=4,
+        decimal_places=2,
+        validators=[MinValueValidator(0)]
+    )
 
 
 
-    @property
-    def discount_decimal(self):
-        return self.discount_integer / 100 
+  
     
     
     @property
     def price_item_after(self):
-      return int(self.quantity * self.batch.medicine.unit_price * (1 - self.discount_decimal))
+      return Decimal(self.quantity * self.batch.medicine.unit_price * (1 - self.discount/100))
 
     @property
     def price_item(self):
-        return int(self.quantity * self.batch.medicine.unit_price)
+        return Decimal(self.quantity * self.batch.medicine.unit_price)
     
 
     

@@ -8,7 +8,8 @@ import string
 from phonenumber_field.modelfields import PhoneNumberField
 from cities_light.models import City
 from django_countries.fields import CountryField
-
+from decimal import Decimal
+from django.core.validators import MinLengthValidator, MinValueValidator
 
 
 
@@ -54,7 +55,7 @@ class Manufacturer(TimeStampedModel):
         """Meta definition for MODELNAME."""
 
         verbose_name = 'Manufacturer'
-        verbose_name_plural = 'Manufacturer'
+        verbose_name_plural = 'Manufacturers'
 
     def __str__(self):
         """Unicode representation of MODELNAME."""
@@ -97,9 +98,12 @@ class Medicine(TimeStampedModel):
     last_supplier = models.ForeignKey(Supplier, on_delete=models.CASCADE, related_name="medicines", null=True, blank=True)
 
     units_per_pack = models.IntegerField(default=1)
-    price_cents = models.PositiveIntegerField(
+    price = models.DecimalField(
         "price in cents",
-        help_text="Price of pack in cents"
+        max_digits=8,
+        decimal_places=2,
+        validators=[MinValueValidator(0)],
+        help_text="Price of pack"
     )
     last_discount_percent = models.DecimalField(
         "Last Discount Percent",
@@ -110,17 +114,16 @@ class Medicine(TimeStampedModel):
         help_text="Percentage discount you got when last purchasing this medicine."
     )
    
-    @property
-    def price(self):
-        return self.price_cents / 100
-
-    @property
-    def unit_price(self):
-        return self.price / self.units_per_pack
     
     @property
-    def unit_price_cents(self):
-        return self.price_cents / self.units_per_pack
+    def unit_price(self):
+        return Decimal(self.price / self.units_per_pack)
+        
+    @property
+    def unit_price(self):
+        return Decimal(self.price / self.units_per_pack)
+    
+    
     @property
     def stock(self):
         if self.batches:
@@ -144,10 +147,11 @@ def generate_barcode():
     return barcode
         
 class Batch(TimeStampedModel):
-    barcode = models.CharField(max_length=16,unique=True, null=True, blank=True)
+    barcode = models.CharField(max_length=16,unique=True, null=True, blank=True
+                               ,validators=[MinLengthValidator(16)])
     expiry_date = models.DateField(auto_now=False, auto_now_add=False)
     medicine = models.ForeignKey(Medicine, on_delete=models.CASCADE, related_name="batches")
-    stock_units = models.PositiveIntegerField(default=0)
+    stock_units = models.PositiveIntegerField()
     class Meta:
         unique_together = ["expiry_date","medicine"]
     
@@ -159,15 +163,13 @@ class Batch(TimeStampedModel):
         if self.expiry_date and self.expiry_date <= now().date():
             raise ValidationError({"expiry_date": "This is not a valid date"})
         
-        if self.stock_units <= 0:
-            raise ValidationError({"stock_units": "stock units must be greater than zero"})
+        if self.stock_units < 0:
+            raise ValidationError({"stock_units": "stock units must be positive"})
 
     @property 
-    def price_cents(self):
-        return self.medicine.unit_price_cents
-    @property 
     def price(self):
-        return self.medicine.unit_price
+        return Decimal(self.medicine.unit_price)
+    
     @property 
     def is_expired(self):
         return self.expiry_date <= now().date()
