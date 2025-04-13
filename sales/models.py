@@ -14,7 +14,6 @@ class Invoice(TimeStampedModel):
     )
     discount_integer = models.PositiveSmallIntegerField()
     total_before_discount = models.PositiveBigIntegerField(
-        editable=False,
         default=0
     )
     
@@ -42,6 +41,9 @@ class Invoice(TimeStampedModel):
             self.total_before_discount = sum(
                 item.total for item in self.sales_items.all()
             )
+        if self.payment_status == "refunded":
+            for item in self.items.all():
+                item.batch.stock_units += self.item.quantity
         super().save(*args, **kwargs)
 
     def display_total_after_discount(self):
