@@ -1,25 +1,39 @@
 from rest_framework import serializers 
-from medicine.models import Medicine, Batch
+from medicine.models import Medicine, Batch, Supplier,ActiveIngredient,Category,Manufacturer
 from django.utils.timezone import now 
+
+
+
+class SupplierSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Supplier
+        fields = ["name","phone_number","address","city"]
+
+class ActiveIngredientSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ActiveIngredient
+        fields = ["name"]
+
+class ManufacturerSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Manufacturer
+        fields = ["name","country","phone_number","address","website"]
+
+class CategorySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Category
+        fields = ["name","parent"]
+
 class MedicineInSerializer(serializers.ModelSerializer):
     """ for creation and upadte of medicine """
-    whole_price = serializers.DecimalField(max_digits=8, decimal_places=2, write_only=True)
+  
     class Meta:
         model = Medicine
         fields = ["name","international_barcode","active_ingredient",
-                  "category","units_per_pack","whole_price","manufacturer"]
+                  "category","units_per_pack","price","manufacturer"]
         
 
-    def create(self, validated_data):
-        whole_price = validated_data.pop("whole_price")
-        validated_data["price_cents"] = int(whole_price *100)
-        return super().create(validated_data)
-    
-    def update(self, instance, validated_data):
-        whole_price = validated_data.pop("whole_price",None)
-        if whole_price:
-            validated_data["price_cents"] = int(whole_price*100)
-        return super().update(instance, validated_data)
+
 
 
 class MedicineOutSerializer(serializers.ModelSerializer):
@@ -27,11 +41,16 @@ class MedicineOutSerializer(serializers.ModelSerializer):
     active_ingredient = serializers.StringRelatedField()
     category = serializers.StringRelatedField()
     manufacturer = serializers.StringRelatedField()
+    barcodes = serializers.SerializerMethodField()
+    def get_barcodes(self, obj):
+        barcodes = obj.batches.values_list("barcode", flat=True)
+        return list(barcodes)
+                
     class Meta:
         model = Medicine
         fields = ["id","name","active_ingredient","manufacturer",
-                  "category","units_per_pack","price","stock","international_barcode"]
-        
+                  "category","units_per_pack","price","stock","barcodes","international_barcode"]
+        read_only_fields = ["international_barcode","barcodes"]
 
 
 
@@ -104,5 +123,6 @@ class BatchOutSerializer(serializers.ModelSerializer):
             "expiry_date",
             "medicine",
             "stock_packets",
+            "barcode"
         ]
     

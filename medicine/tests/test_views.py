@@ -10,9 +10,6 @@ from django.db import IntegrityError
 from django.core.exceptions import ValidationError
 
 
-# TODO
-# test pag, filtering , search 
-# test roles
 
 
 @pytest.mark.django_db
@@ -41,12 +38,12 @@ class TestMedicineAPI:
         manufacturer = ManufacturerFactory()
         data = {
             "name": "Paracetamol",
-            "international_barcode":234567898543,
+            "international_barcode":"23456789854663",
             "active_ingredient": ingredient.id,
             "category": category.id,
             "manufacturer": manufacturer.id,
             "units_per_pack":3,
-            "whole_price":99.99
+            "price":99.99
             
         }
         response = self.client.post(self.url, data)
@@ -176,3 +173,65 @@ class TestBatchAPI:
         assert res.status_code == 200
         assert batch.stock_packets == res.data["stock_packets"]
 
+@pytest.mark.django_db
+class TestMedicineAPIExtended:
+    def setup_method(self):
+        self.client = APIClient()
+        self.pharmacist = UserFactory(role="pharmacist")
+        self.cashier = UserFactory(role="cashier")
+        self.unauthenticated_client = APIClient()
+        self.client.force_authenticate(user=self.pharmacist)
+        self.url = reverse("medicine-list")
+
+    def test_permission_denied_for_cashier(self):
+        self.client.force_authenticate(user=self.cashier)
+        ingredient = ActiveIngredientFactory()
+        category = CategoryFactory()
+        manufacturer = ManufacturerFactory()
+        data = {
+            "name": "Paracetamol",
+            "international_barcode":234567898543,
+            "active_ingredient": ingredient.id,
+            "category": category.id,
+            "manufacturer": manufacturer.id,
+            "units_per_pack":3,
+            "price":99.99
+            
+        }
+        response = self.client.post(self.url, data=data)
+        assert response.status_code == 403  # Forbidden for non-pharmacists
+
+    def test_permission_denied_for_unauthenticated_user(self):
+        response = self.unauthenticated_client.get(self.url)
+        assert response.status_code == 401  # Unauthorized
+
+    def test_medicine_pagination(self):
+        MedicineFactory.create_batch(30)  # more than one page
+        response = self.client.get(self.url + "?page=1")
+        assert response.status_code == 200
+        assert "results" in response.data
+        assert len(response.data["results"]) <= 10  # default page size (if set in pagination)
+
+        # check next page
+        response2 = self.client.get(self.url + "?page=2")
+        assert response2.status_code == 200
+
+    def test_search_by_name(self):
+        med = MedicineFactory(name="Zyrtec")
+        response = self.client.get(self.url + "?search=zyr")
+        assert response.status_code == 200
+        assert any(m["name"] == "Zyrtec" for m in response.data["results"])
+
+    def test_search_by_active_ingredient(self):
+        active = ActiveIngredientFactory(name="Ibuprofen")
+        med = MedicineFactory(active_ingredient=active)
+        response = self.client.get(self.url + "?search=ibu")
+        assert response.status_code == 200
+        assert any(m["name"] == med.name for m in response.data["results"])
+
+    def test_search_by_category(self):
+        category = CategoryFactory(name="painkillers")
+        med = MedicineFactory(category=category)
+        response = self.client.get(self.url + "?search=pain")
+        assert response.status_code == 200
+        assert any(m["name"] == med.name for m in response.data["results"])

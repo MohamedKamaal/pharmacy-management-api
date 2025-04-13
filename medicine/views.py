@@ -2,8 +2,8 @@
 from django.shortcuts import render, get_object_or_404
 
 from users.permissions import IsPharmacist
-from medicine.models import Medicine, Batch
-from medicine.serializers import MedicineInSerializer, MedicineOutSerializer, BatchInSerializer, BatchOutSerializer
+from medicine.models import Medicine, Batch, ActiveIngredient, Manufacturer, Supplier, Category
+from medicine.serializers import MedicineInSerializer, MedicineOutSerializer, BatchInSerializer, BatchOutSerializer,ActiveIngredientSerializer,CategorySerializer,ManufacturerSerializer,SupplierSerializer
 from rest_framework import generics
 from medicine.paginations import MedicinePagination
 from rest_framework.response import Response
@@ -12,6 +12,26 @@ from rest_framework.filters import SearchFilter
 from django.http import Http404
 
 # Create your views here.
+
+class ActiveIngredientListCreateAPIView(generics.ListCreateAPIView):
+    permission_classes = [IsPharmacist]
+    queryset = ActiveIngredient.objects.all()
+    serializer_class = ActiveIngredientSerializer
+
+class ManufacturerListCreateAPIView(generics.ListCreateAPIView):
+    permission_classes = [IsPharmacist]
+    queryset = Manufacturer.objects.all()
+    serializer_class = ManufacturerSerializer
+
+class SupplierListCreateAPIView(generics.ListCreateAPIView):
+    permission_classes = [IsPharmacist]
+    queryset = Supplier.objects.all()
+    serializer_class = SupplierSerializer
+
+class CategoryListCreateAPIView(generics.ListCreateAPIView):
+    permission_classes = [IsPharmacist]
+    queryset = Category.objects.all()
+    serializer_class = CategorySerializer
 
 class MedicineListCreateAPIView(generics.ListCreateAPIView):
     filter_backends = [SearchFilter]

@@ -6,6 +6,9 @@ from medicine.models import Supplier, Manufacturer, Category, ActiveIngredient, 
 from phonenumber_field.phonenumber import PhoneNumber
 from cities_light.models import Country
 from faker import Faker
+import decimal 
+
+
 
 EGYPT_MOBILE_PREFIXES = ["010", "011", "012", "015"]  # Vodafone, Orange, Etisalat, WE
 class SupplierFactory(factory.django.DjangoModelFactory):
@@ -74,7 +77,8 @@ class MedicineFactory(factory.django.DjangoModelFactory):
     category = factory.SubFactory(CategoryFactory)
     manufacturer = factory.SubFactory(ManufacturerFactory)
     units_per_pack = factory.Faker("random_int", min=1, max=5)
-    price_cents = factory.Faker("random_int", min=100, max=100000)
+    price = factory.LazyFunction(lambda: decimal.Decimal(str(round(random.uniform(5.0, 200.0), 2))))
+
     @factory.lazy_attribute
     def international_barcode(self):
     

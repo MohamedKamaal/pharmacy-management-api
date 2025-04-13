@@ -1,9 +1,11 @@
 from django.db import models
 from medicine.models import Medicine, TimeStampedModel, Batch
+from django.core.validators import MinValueValidator
+from decimal import Decimal, ROUND_HALF_UP
+
 
 class Invoice(TimeStampedModel):
     PAYMENT_STATUS = [
-        ('unpaid', 'Unpaid'),
         ('paid', 'Paid'),
         ('refunded', 'Refunded'),
     ]
@@ -12,9 +14,15 @@ class Invoice(TimeStampedModel):
         choices=PAYMENT_STATUS,
         default='paid'
     )
-    discount_integer = models.PositiveSmallIntegerField()
-    total_before_discount = models.PositiveBigIntegerField(
-        editable=False,
+    discount= models.DecimalField(
+        max_digits=4,
+        decimal_places=2,
+        validators=[MinValueValidator(0)]
+    )
+    total_before_discount = models.DecimalField(
+        max_digits=8,
+        decimal_places=2,
+        validators=[MinValueValidator(0)],
         default=0
     )
     
@@ -24,32 +32,34 @@ class Invoice(TimeStampedModel):
         verbose_name_plural = "Invoices"
         ordering = ['-created']  
 
-    @property
-    def discount_decimal(self):
-        return self.discount_integer / 100 
+    
     @property
     def total_after_discount(self):
-        """Calculate total after applying discount (in cents)"""
-        amount = sum(
-            item.total for item in self.sales_items.all()
-        )
-        total = amount * (1-(self.discount_decimal/100))
-        return total
+        """Calculate total after applying discount"""
+        subtotal = self.total_before_discount  # Assuming this is a Decimal already
+        amount = Decimal(subtotal)
+        
+        # Apply discount as a percentage (i.e., 10% discount is 0.10)
+        discounted = amount * (1 - (self.discount / Decimal('100')))
 
+        # Ensure rounding to 2 decimal places
+        return discounted.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
     def save(self, *args, **kwargs):
         """Recalculate totals before saving"""
-        if self.pk and hasattr(self,"sales_items") and self.payment_status == 'paid':
+        if self.pk and hasattr(self, "sales_items") and self.payment_status == 'paid':
             self.total_before_discount = sum(
                 item.total for item in self.sales_items.all()
-            )
+            ).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+            
+        if self.payment_status == "refunded":
+            for item in self.sales_items.all():
+                item.batch.stock_units +=item.quantity
+                item.batch.save()
         super().save(*args, **kwargs)
 
-    def display_total_after_discount(self):
-        """Format the integer value as decimal currency"""
-        return f"${self.total_after_discount}"
 
     def __str__(self):
-        return f"Invoice #{self.pk} - {self.display_total_after_discount()}"
+        return f"Invoice #{self.pk} - {self.total_after_discount}"
     
     
 
@@ -71,23 +81,22 @@ class SaleItem(models.Model):
         verbose_name_plural = "Sale Items"
         
 
-
-    @property
+    @property   
     def total(self):
-        """Calculate line item total in cents"""
-        return (self.batch.medicine.unit_price_cents * self.quantity) /100
-
-    def display_total(self):
-        """Format the integer value as decimal currency"""
-        return f"${self.total}"
+        """Calculate line item total in cents (rounded to 2 decimals)"""
+        # Use pack price and units_per_pack directly
+        pack_price = self.batch.medicine.price
+        units_per_pack = self.batch.medicine.units_per_pack
+        total = (pack_price / units_per_pack) * self.quantity
+        return Decimal(total.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP))
 
     def __str__(self):
-        return f"{self.quantity}x {self.batch.medicine.name} ({self.display_total()})"
+        return f"{self.quantity}x {self.batch.medicine.name} ({self.total})"
 
     def save(self, *args, **kwargs):
         """Update parent invoice totals when saving"""
         super().save(*args, **kwargs)
-        if self.invoice.payment_status == "paid":
-            self.batch.stock_units += self.quantity
+        
+        self.batch.stock_units -= self.quantity  # Decrease stock
         self.batch.save()
         self.invoice.save()

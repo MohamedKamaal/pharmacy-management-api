@@ -3,66 +3,66 @@ from django.db import IntegrityError
 from orders.models import Order, OrderItem
 from .factories import OrderFactory, OrderItemFactory
 from medicine.tests.factories import MedicineFactory, SupplierFactory ,BatchFactory
+from decimal import Decimal
+# tests.py
+import pytest
+from django.db import IntegrityError
+from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 
-@pytest.mark.django_db
-def test_order_creation():
-    """Test that an order is created with the correct supplier"""
-    supplier = SupplierFactory.create(name="Test Supplier")
-    order = OrderFactory.create(supplier=supplier)
-    
-    assert order.supplier == supplier
-    assert order.total_before is None
-    assert order.total_after is None
+from .factories import OrderFactory, OrderItemFactory, BatchFactory
 
 @pytest.mark.django_db
 def test_order_update_totals():
     """Test that total_before and total_after are updated correctly"""
     order = OrderFactory.create()
-    order_item_1 = OrderItemFactory.create(order=order, quantity=2, discount_integer=10)
-    order_item_2 = OrderItemFactory.create(order=order, quantity=3, discount_integer=5)
+    order_item_1 = OrderItemFactory.create(order=order, quantity=2, discount=10)
+    order_item_2 = OrderItemFactory.create(order=order, quantity=3, discount=5)
 
-    # Update the total_before and total_after
-    order.total_before = sum(item.price_item for item in order.items.all())
-    order.total_after = sum(item.price_item_after for item in order.items.all())
-
+    # Save order to update totals
     order.save()
 
-    assert order.total_before == (order_item_1.price_item + order_item_2.price_item)
-    assert order.total_after == (order_item_1.price_item_after + order_item_2.price_item_after)
+    # Ensure that calculations are done using Decimal values
+    total_before = (order_item_1.price_item_before + order_item_2.price_item_before)
+    total_after = (order_item_1.price_item_after + order_item_2.price_item_after)
+
+    assert order.total_before == total_before
+    assert order.total_after == total_after
+
 
 @pytest.mark.django_db
 def test_order_item_creation():
     """Test that an order item is created with the correct details"""
-    order_item = OrderItemFactory.create(quantity=2, discount_integer=10)
+    order_item = OrderItemFactory.create(quantity=2, discount=10)
 
     assert order_item.quantity == 2
-    assert order_item.discount_integer == 10
-    assert order_item.price_item == int(2 * order_item.batch.medicine.price)
-    assert order_item.price_item_after == int(
-     2 * order_item.batch.medicine.price * (1 - order_item.discount_integer / 100)
-)
-@pytest.mark.django_db
-def test_discount_property():
-    """Test the discount property calculation"""
-    order_item = OrderItemFactory.create(quantity=2, discount_integer=10)
+    assert order_item.discount == Decimal('10')  # Ensure it's compared with Decimal
 
-    assert order_item.discount == 0.1
+    # Use Decimal when comparing price calculations
+    expected_price_item_before = Decimal(2) * order_item.batch.medicine.unit_price
+    assert order_item.price_item_before == expected_price_item_before
+
 
 @pytest.mark.django_db
 def test_price_item_after_property():
     """Test the price_item_after property calculation"""
-    order_item = OrderItemFactory.create(quantity=2, discount_integer=10)
-    expected_price_item_after = int(2 * order_item.batch.medicine.price * (1 - 0.1))  # 2 * price * (1 - discount)
+    order_item = OrderItemFactory.create(quantity=2, discount=10)
 
-    assert order_item.price_item_after == expected_price_item_after
+    total = Decimal(2) * order_item.batch.medicine.unit_price * (Decimal(1) - Decimal('0.10'))
+    total = total.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)  # Save the rounded value
+    assert order_item.price_item_after == total
+
 
 @pytest.mark.django_db
 def test_price_item_property():
     """Test the price_item property calculation"""
-    order_item = OrderItemFactory.create(quantity=2, discount_integer=10)
-    expected_price_item = int(2 * order_item.batch.medicine.price)  # 2 * price
+    order_item = OrderItemFactory.create(quantity=2, discount=10)
 
-    assert order_item.price_item == expected_price_item
+    # Ensure you're using Decimal for price calculation
+    total = Decimal(order_item.quantity) * order_item.batch.medicine.unit_price
+    total.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    assert order_item.price_item_before == total
+
 
 @pytest.mark.django_db
 def test_unique_order_item():
@@ -70,9 +70,9 @@ def test_unique_order_item():
     order = OrderFactory.create()
     batch = BatchFactory.create()
 
-    # Create the first OrderItem
+    # Ensuring unique constraint is respected
     order_item_1 = OrderItemFactory.create(order=order, batch=batch)
 
-    # Try to create a second OrderItem with the same order and batch (this should raise an IntegrityError)
+    # Attempting to create a duplicate OrderItem should raise an IntegrityError
     with pytest.raises(IntegrityError):
         OrderItemFactory.create(order=order, batch=batch)

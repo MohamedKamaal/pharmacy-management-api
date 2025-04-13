@@ -8,8 +8,9 @@ import string
 from phonenumber_field.modelfields import PhoneNumberField
 from cities_light.models import City
 from django_countries.fields import CountryField
-
-
+from decimal import Decimal
+from django.core.validators import MinLengthValidator, MinValueValidator
+from decimal import Decimal, ROUND_HALF_UP
 
 
 # Create your models here.
@@ -54,7 +55,7 @@ class Manufacturer(TimeStampedModel):
         """Meta definition for MODELNAME."""
 
         verbose_name = 'Manufacturer'
-        verbose_name_plural = 'Manufacturer'
+        verbose_name_plural = 'Manufacturers'
 
     def __str__(self):
         """Unicode representation of MODELNAME."""
@@ -88,39 +89,35 @@ class Medicine(TimeStampedModel):
         "International Barcode",
         max_length=16,
         unique=True,
-        db_index=True
+        db_index=True,
+        validators=[MinLengthValidator(13)]
     )    
     name = models.CharField(unique=True, max_length=50)
     active_ingredient = models.ForeignKey(ActiveIngredient, on_delete=models.CASCADE, related_name="medicines")
     category = models.ForeignKey(Category, on_delete=models.CASCADE, related_name="medicines")
     manufacturer = models.ForeignKey(Manufacturer, on_delete=models.CASCADE, related_name="medicines")
-    last_supplier = models.ForeignKey(Supplier, on_delete=models.CASCADE, related_name="medicines", null=True, blank=True)
 
-    units_per_pack = models.IntegerField(default=1)
-    price_cents = models.PositiveIntegerField(
+    units_per_pack = models.PositiveSmallIntegerField(default=1)
+    price = models.DecimalField(
         "price in cents",
-        help_text="Price of pack in cents"
-    )
-    last_discount_percent = models.DecimalField(
-        "Last Discount Percent",
-        max_digits=4,  # allows up to 99.99
+        max_digits=8,
         decimal_places=2,
-        null=True,
-        blank=True,
-        help_text="Percentage discount you got when last purchasing this medicine."
+        validators=[MinValueValidator(0)],
+        help_text="Price of pack"
     )
    
-    @property
-    def price(self):
-        return self.price_cents / 100
-
-    @property
-    def unit_price(self):
-        return self.price / self.units_per_pack
+   
     
     @property
-    def unit_price_cents(self):
-        return self.price_cents / self.units_per_pack
+    def is_available(self):
+        return self.batches.filter(
+            stock_units__gt=0
+        ).exists()
+        
+    @property
+    def unit_price(self):
+        return (Decimal(self.price) / Decimal(self.units_per_pack)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    
     @property
     def stock(self):
         if self.batches:
@@ -144,10 +141,11 @@ def generate_barcode():
     return barcode
         
 class Batch(TimeStampedModel):
-    barcode = models.CharField(max_length=16,unique=True, null=True, blank=True)
+    barcode = models.CharField(max_length=16,unique=True, null=True, blank=True
+                               ,validators=[MinLengthValidator(16)])
     expiry_date = models.DateField(auto_now=False, auto_now_add=False)
     medicine = models.ForeignKey(Medicine, on_delete=models.CASCADE, related_name="batches")
-    stock_units = models.PositiveIntegerField(default=0)
+    stock_units = models.PositiveIntegerField()
     class Meta:
         unique_together = ["expiry_date","medicine"]
     
@@ -159,21 +157,22 @@ class Batch(TimeStampedModel):
         if self.expiry_date and self.expiry_date <= now().date():
             raise ValidationError({"expiry_date": "This is not a valid date"})
         
-        if self.stock_units <= 0:
-            raise ValidationError({"stock_units": "stock units must be greater than zero"})
+        if self.stock_units < 0:
+            raise ValidationError({"stock_units": "stock units must be positive"})
 
-    @property 
-    def price_cents(self):
-        return self.medicine.unit_price_cents
+    
     @property 
     def price(self):
-        return self.medicine.unit_price
+         return self.medicine.unit_price.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    
     @property 
     def is_expired(self):
         return self.expiry_date <= now().date()
+
     @property 
     def has_amount(self):
-        return self.stock_units >0
+        return self.stock_units > 0
+        
     @property
     def stock_packets(self):
         packs = self.stock_units // self.medicine.units_per_pack

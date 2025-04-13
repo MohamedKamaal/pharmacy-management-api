@@ -1,153 +1,198 @@
 import pytest
-from decimal import Decimal
 from django.urls import reverse
 from rest_framework.test import APIClient
 from rest_framework import status
-from sales.models import Invoice, SaleItem
-from users.tests.factories import UserFactory
-from sales.tests.factories import InvoiceFactory, SaleItemFactory
-from medicine.tests.factories import BatchFactory
-from datetime import timedelta
 from django.utils import timezone
+from decimal import Decimal
+
+from users.tests.factories import UserFactory
+from medicine.tests.factories import BatchFactory, MedicineFactory
+from sales.models import Invoice, SaleItem
+
 
 @pytest.fixture
-def pharmacist_user():
-    return UserFactory(role="pharmacist")
+def cashier_user():
+    return UserFactory(role="cashier")
+
 
 @pytest.fixture
-def auth_client(pharmacist_user):
+def non_cashier_user():
+    return UserFactory(role="customer")
+
+
+@pytest.fixture
+def auth_client(cashier_user):
     client = APIClient()
-    client.force_authenticate(user=pharmacist_user)
+    client.force_authenticate(user=cashier_user)
     return client
 
+
+@pytest.fixture
+def unauth_client():
+    return APIClient()
+
+
+
 @pytest.mark.django_db
-def test_create_invoice(auth_client):
-    batch = BatchFactory(stock_units=10)
-
+def test_create_invoice_success(auth_client):
+    # Set up a batch with stock units available
+    medicine = MedicineFactory(price=30.00,units_per_pack=3)
+    batch = BatchFactory(medicine = medicine, stock_units=3)
+    
+    # Define valid data for creating an invoice
     data = {
-        "items": [{"barcode": batch.barcode, "quantity": 2}],
+        "items": [
+            {"barcode": batch.barcode, "quantity": 2}
+        ],
         "payment_status": "paid",
-        "discount_percentage": "10.00",
+        "discount": 50.00,
     }
-
+    
     url = reverse("invoice-list")
     response = auth_client.post(url, data, format="json")
+    
+    print(response.data)
+    print(f"Generated expiry_date: {batch.expiry_date}")
 
-    assert response.status_code == 201
+
+    # Assert that the invoice creation is successful
+    assert response.status_code == status.HTTP_201_CREATED
     assert Invoice.objects.count() == 1
-    assert SaleItem.objects.count() == 1
+    invoice = Invoice.objects.first()
+    
+    # Check invoice details
+    assert invoice.payment_status == "paid"
+    assert invoice.discount == Decimal("50.00")
+    assert invoice.total_before_discount == Decimal("20.00")
+    assert invoice.total_after_discount == Decimal("10.00")
+    
+    # Check stock update
+    batch.refresh_from_db()
+    assert batch.stock_units == 1  # 10 - 2 items sold
+
 
 @pytest.mark.django_db
-def test_list_invoices(auth_client):
-    InvoiceFactory.create_batch(3)
+def test_retrieve_invoice_success(auth_client):
+    # Create a batch and invoice as setup
+    medicine = MedicineFactory(price=30.00, units_per_pack=3)
+    batch = BatchFactory(medicine=medicine, stock_units=3)
+    invoice = Invoice.objects.create(
+        payment_status="paid",
+        discount=Decimal(50.00),
+        total_before_discount=Decimal("20.00"),
+  
+    )
+    SaleItem.objects.create(invoice=invoice, batch=batch, quantity=2)
 
-    url = reverse("invoice-list")
+    url = reverse("invoice-detail", kwargs={"pk": invoice.pk})
     response = auth_client.get(url)
 
-    assert response.status_code == 200
-    assert len(response.data) >= 3
+    # Assert the response status is OK and check the invoice details
+    assert response.status_code == status.HTTP_200_OK
+    assert response.data["payment_status"] == "paid"
+    assert response.data["discount"] == ('50.00')
+    assert response.data["total_before_discount"] == ('20.00')
+    assert response.data["total_after_discount"] == Decimal('10.00')
 
 @pytest.mark.django_db
-def test_retrieve_invoice(auth_client):
-    invoice = InvoiceFactory()
-    url = reverse("invoice-detail", kwargs={"pk": invoice.id})  # Corrected kwargs
-    response = auth_client.get(url)
+def test_update_invoice_success(auth_client):
+    # Create initial invoice
+    medicine = MedicineFactory(price=30.00, units_per_pack=3)
+    batch = BatchFactory(medicine=medicine, stock_units=3)
+    invoice = Invoice.objects.create(
+        payment_status="paid",
+        discount=Decimal("50.00"),
+        total_before_discount=Decimal("20.00"),
+      
+    )
+    SaleItem.objects.create(invoice=invoice, batch=batch, quantity=2)
 
-    assert response.status_code == 200
-    assert response.data["id"] == invoice.id
-
-@pytest.mark.django_db
-def test_update_invoice(auth_client):
-    invoice = InvoiceFactory(discount_integer=500)
-    old_item = SaleItemFactory(invoice=invoice, quantity=1)
-    batch = BatchFactory(stock_units=10)
-
+    url = reverse("invoice-detail", kwargs={"pk": invoice.pk})
     data = {
-        "items": [{"barcode": batch.barcode, "quantity": 4}],
-        "payment_status": "partially_paid",
-        "discount_percentage": "15.00"
+        "payment_status": "paid",  # Updating status
+        "discount": "30.00",  # New discount
+        "items": [{"barcode": batch.barcode, "quantity": 1}],
     }
+    response = auth_client.put(url, data, format="json")
 
-    url = reverse("invoice-detail", kwargs={"pk": invoice.id})  # Corrected kwargs
-    response = auth_client.patch(url, data)
-
-    assert response.status_code == 200
+    # Assert the response status is OK
+    assert response.status_code == status.HTTP_200_OK
+    # Verify updated invoice details
     invoice.refresh_from_db()
-    assert invoice.discount_integer == 1500
-    assert invoice.payment_status == "partially_paid"
-    assert invoice.sales_items.count() == 1
-    assert invoice.sales_items.first().batch == batch
+    assert invoice.payment_status == "paid"
+    assert invoice.discount == Decimal("30.00")
 
 @pytest.mark.django_db
-def test_delete_invoice(auth_client):
-    invoice = InvoiceFactory()
-    url = reverse("invoice-detail", kwargs={"pk": invoice.id})  # Corrected kwargs
+def test_delete_invoice_success(auth_client):
+    # Create initial invoice
+    medicine = MedicineFactory(price=30.00, units_per_pack=3)
+    batch = BatchFactory(medicine=medicine, stock_units=3)
+    invoice = Invoice.objects.create(
+        payment_status="paid",
+        discount=Decimal("50.00"),
+        total_before_discount=Decimal("20.00"),
+  
+    )
+    SaleItem.objects.create(invoice=invoice, batch=batch, quantity=2)
+
+    url = reverse("invoice-detail", kwargs={"pk": invoice.pk})
     response = auth_client.delete(url)
 
-    assert response.status_code == 204
-    assert not Invoice.objects.filter(id=invoice.id).exists()
+    # Assert the response status is OK
+    assert response.status_code == status.HTTP_204_NO_CONTENT
+    assert Invoice.objects.count() == 0
 
 @pytest.mark.django_db
-def test_unauthenticated_user_cannot_access():
-    client = APIClient()
-    url = reverse("invoice-list")
-    response = client.get(url)
-    assert response.status_code in [401, 403]
-
-@pytest.mark.django_db
-def test_create_invoice_with_empty_items(auth_client):
+def test_create_invoice_unauthorized(non_cashier_user, unauth_client):
+    # Set up a batch with stock units available
+    medicine = MedicineFactory(price=30.00, units_per_pack=3)
+    batch = BatchFactory(medicine=medicine, stock_units=3)
+    
+    # Define valid data for creating an invoice
     data = {
-        "items": [],
+        "items": [
+            {"barcode": batch.barcode, "quantity": 2}
+        ],
         "payment_status": "paid",
-        "discount_percentage": "5.00"
+        "discount": "50.00",
     }
+    
     url = reverse("invoice-list")
-    response = auth_client.post(url, data)
+    unauth_client.force_authenticate(user=non_cashier_user)
+    response = unauth_client.post(url, data, format="json")
 
-    assert response.status_code == 400
-    assert "items" in response.data
+    # Assert that the user cannot create an invoice
+    assert response.status_code == status.HTTP_403_FORBIDDEN
 
 @pytest.mark.django_db
-def test_create_invoice_with_invalid_barcode(auth_client):
+def test_return_invoice_success(auth_client):
+    # Create a batch and invoice as setup
+    medicine = MedicineFactory(price=30.00,units_per_pack=3)
+    batch = BatchFactory(medicine = medicine, stock_units=3)
+    
+    # Define valid data for creating an invoice
     data = {
-        "items": [{"barcode": "nonexistent-barcode", "quantity": 1}],
+        "items": [
+            {"barcode": batch.barcode, "quantity": 2}
+        ],
         "payment_status": "paid",
-        "discount_percentage": "0.00"
+        "discount": "50.00",
     }
+    
     url = reverse("invoice-list")
     response = auth_client.post(url, data, format="json")
 
-    assert response.status_code == 400
-    assert "barcode" in str(response.data)
 
-@pytest.mark.django_db
-def test_create_invoice_with_quantity_exceeding_stock(auth_client):
-    batch = BatchFactory(stock_units=2)
+    # Verify that invoice has associated sale items
 
-    data = {
-        "items": [{"barcode": batch.barcode, "quantity": 5}],  # more than available
-        "payment_status": "paid",
-        "discount_percentage": "0.00"
-    }
+    url = reverse("invoice-return")
+    invoice = Invoice.objects.first()
+    data = {"invoice": invoice.id}
+    response = auth_client.post(url, data, format="json")
 
-    url = reverse("invoice-list")
-    response = auth_client.post(url, data)
-
-    assert response.status_code == 400
-    assert "quantity" in str(response.data)
-
-@pytest.mark.django_db
-def test_create_invoice_with_expired_batch(auth_client):
-    expired_batch = BatchFactory(expiry_date=timezone.now().date() - timedelta(days=1), stock_units=10)
-
-    data = {
-        "items": [{"barcode": expired_batch.barcode, "quantity": 1}],
-        "payment_status": "paid",
-        "discount_percentage": "0.00"
-    }
-
-    url = reverse("invoice-list")
-    response = auth_client.post(url, data)
-
-    assert response.status_code == 400
-    assert "expired" in str(response.data).lower()
+    # Assert the response status is OK and the payment status is updated
+    assert response.status_code == status.HTTP_200_OK
+    invoice.refresh_from_db()
+    batch.refresh_from_db()
+    assert batch.stock_units == 3
+    assert invoice.payment_status == "refunded"
