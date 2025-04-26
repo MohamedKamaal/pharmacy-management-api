@@ -28,6 +28,7 @@ python-dateutil = "*"
 python-decouple = "*"
 dj-database-url = "*"
 gunicorn = "*"
+psycopg2-binary = "*"
 
 [dev-packages]
 
