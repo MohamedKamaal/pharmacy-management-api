@@ -1,9 +1,18 @@
+"""
+Order Filter Configuration
+
+Defines filters for querying orders in the API.
+"""
+
 import django_filters
 from orders.models import Order
 from django.db import models
 
+
 class OrderFilter(django_filters.FilterSet):
-    # Date range filters
+    """
+    FilterSet for Order model with date-based filtering options.
+    """
     created_at_gte = django_filters.DateFilter(
         field_name='created', 
         lookup_expr='gte',
@@ -14,21 +23,16 @@ class OrderFilter(django_filters.FilterSet):
         lookup_expr='lte',
         label='Created before or on (YYYY-MM-DD)'
     )
-    
-    # Exact date filter
     created_at = django_filters.DateFilter(
         field_name='created',
         lookup_expr='exact',
         label='Exact date (YYYY-MM-DD)'
     )
-    
-    # Month/year filter
     created_at_month = django_filters.NumberFilter(
         field_name='created',
         lookup_expr='month',
         label='Month (1-12)'
     )
-    
     created_at_year = django_filters.NumberFilter(
         field_name='created',
         lookup_expr='year',
