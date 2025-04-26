@@ -27,6 +27,7 @@ pytest-factoryboy = "*"
 python-dateutil = "*"
 python-decouple = "*"
 dj-database-url = "*"
+gunicorn = "*"
 
 [dev-packages]
 

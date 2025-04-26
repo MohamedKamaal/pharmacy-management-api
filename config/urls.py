@@ -18,7 +18,7 @@ import orders , sales, reports
 # Schema view configuration
 schema_view = get_schema_view(
     openapi.Info(
-        title="Medium-like Api",
+        title="Pharmacy Management Api",
         default_version="v1",
         description="API documentation using Swagger and ReDoc",
         terms_of_service="https://www.yoursite.com/terms/",
@@ -58,6 +58,6 @@ if settings.DEBUG:
         path('__debug__/', include(debug_toolbar.urls)),
     ]
 # Admin site customization
-admin.site.site_header = "Authors Haven API Admin"
-admin.site.site_title = "Authors Haven API Admin Portal"
-admin.site.index_title = "Welcome to Authors Haven API Admin Portal"
+admin.site.site_header = "Pharmacy Management API Admin"
+admin.site.site_title = "Pharmacy Management API Admin Portal"
+admin.site.index_title = "Welcome to Pharmacy Management API Admin Portal"
