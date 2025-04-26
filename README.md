@@ -48,7 +48,7 @@ python manage.py runserver
 Open your browser and go to http://127.0.0.1:8000/.
 
 Technologies Used
-Django: Web framework for the backend.
+Django Rest Framework: Web framework for the backend.
 
 PostgreSQL: Database management system.
 
