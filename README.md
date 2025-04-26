@@ -1,100 +1,134 @@
-# Pharmacy Management System
+Pharmacy Management System
+Project Description
+The Pharmacy Management System is a web application designed to manage the daily operations of a pharmacy. It enables pharmacists to manage medicines, process orders, track inventory, and manage stock levels (including expired and near-expiry medicines) ,cashiers to handle sales invoices. The system also supports the return of invoices and refunds.
 
-A web-based application to manage pharmacy inventory, sales, orders, reports, and suppliers.
+Tech Stack
+Backend: Django, Django REST Framework (DRF)
 
-## Features
-- **Medicine Management**: Add, edit, and manage medicines.
-- **Sales**: Track sales and generate receipts.
-- **Orders**: Manage supplier orders and stock.
-- **Reports**: Generate detailed reports on sales and inventory.
-- **Returns**: Handle product returns.
-- **Medicine**: Manage and track medicines.
+Database: PostgreSQL
 
-## Installation
+Authentication: JWT (JSON Web Token) for token-based authentication
 
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/your-username/pharmacy-management.git
-Navigate into the project directory:
+API Documentation: Swagger/Redoc 
 
-bash
-نسخ
-تحرير
+Other Libraries:
+
+django-filter for filtering querysets
+
+django-cors-headers for cross-origin requests
+
+dateutil.relativedelta for date manipulations
+
+Setup Instructions
+Installation
+Clone the repository:
+
+
+
+git clone https://github.com/your-username/pharmacy-management.git
 cd pharmacy-management
-Install the required dependencies using Pipenv (or virtualenv):
+Set up a virtual environment and install dependencies:
 
-bash
-نسخ
-تحرير
-pipenv install
-Set up your database (for example, if using PostgreSQL):
 
-bash
-نسخ
-تحرير
+
+python3 -m venv env
+source env/bin/activate   # On Windows, use `env\Scripts\activate`
+pip install -r requirements.txt
+Set up environment variables (create a .env file):
+
+
+
+DB_NAME=your_db_name
+DB_USER=your_db_user
+DB_PASSWORD=your_db_password
+DB_HOST=localhost
+DB_PORT=5432
+Run database migrations:
+
+
+
 python manage.py migrate
-Create a superuser to access the admin panel:
+Create a superuser for the Django admin panel:
 
-bash
-نسخ
-تحرير
+
+
 python manage.py createsuperuser
-Run the application locally:
+Run the server:
 
-bash
-نسخ
-تحرير
+
+
 python manage.py runserver
-Open your browser and go to http://127.0.0.1:8000/.
+Now the app should be running at http://localhost:8000/.
 
-Technologies Used
-Django Rest Framework: Web framework for the backend.
+Environment
+Ensure you have Python 3.8+ and PostgreSQL installed. You'll need to configure PostgreSQL to create the database and user as per the .env configuration.
 
-PostgreSQL: Database management system.
+Usage
+Running the Project
+To run the development server:
 
-Pipenv: Dependency management.
 
-Bootstrap: Frontend styling (optional).
 
-Contributing
-Fork the repository.
+python manage.py runserver
+You can now access the API at http://localhost:8000/. The admin panel is available at http://localhost:8000/admin/.
 
-Create a new branch (git checkout -b feature-name).
+Endpoints Overview
+Sales Endpoints
+GET /api/invoices/ – List paid invoices (restricted to cashiers)
 
-Make your changes and commit them (git commit -m 'Add feature').
+POST /api/invoices/ – Create a new invoice
 
-Push to the branch (git push origin feature-name).
+POST /api/invoices/return/ – Refund an invoice (mark as refunded)
 
-Open a pull request.
+Orders Endpoints
+GET /api/orders/ – List all orders (restricted to pharmacists)
+
+POST /api/orders/ – Create a new order
+
+Medicines Endpoints
+GET /api/medicines/ – List and search medicines (with filtering and pagination)
+
+POST /api/medicines/ – Add a new medicine
+
+GET /api/medicines/{id}/similar/ – Get similar medicines by active ingredient and category
+
+GET /api/medicines/{id}/batches/ – List all batches for a specific medicine
+
+Stock Management Endpoints
+GET /api/stock/out-of-stock/ – List out-of-stock batches
+
+GET /api/stock/expired/ – List expired batches
+
+GET /api/stock/near-expiry/?months=2 – List batches expiring within 2 months (parameterized)
+
+Authentication
+This application uses JWT (JSON Web Token) for authentication.
+
+Login Endpoint: POST /api/token/
+Send your username and password to receive an access token and refresh token.
+
+Protected Endpoints: All endpoints except login and registration are protected and require a valid JWT token in the Authorization header:
+Authorization: Bearer <your-access-token>
+
+Testing
+To run tests, follow these steps:
+
+Install test dependencies:
+
+
+
+pip install -r requirements-test.txt
+Run the tests:
+
+
+
+python manage.py test
+This will run all the tests defined in your tests/ folder.
+
+Contributors / License
+Contributors
+Your Name – GitHub Profile
 
 License
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-markdown
-نسخ
-تحرير
-
-### Step 3: Commit and Push the `README.md` to GitHub
-Once you've written your `README.md`:
-
-1. **Stage the file**:
-   ```bash
-   git add README.md
-Commit the file:
-
-bash
-نسخ
-تحرير
-git commit -m "Add README.md"
-Push the changes to GitHub:
-
-bash
-نسخ
-تحرير
-git push origin main
-This will add your README.md to your GitHub repository.
-
-
-
-
+This project is licensed under the MIT License – see the LICENSE file for details.
 
