@@ -1,9 +1,13 @@
-""" create order """
+
 from django.shortcuts import render
 from rest_framework import status, generics
 from sales.models import Invoice, SaleItem
 from sales.serializers import InvoiceCreationSerializer, ReturnInvoiceSerializer
+<<<<<<< HEAD
 from users.permissions import IsPharmacist
+=======
+from users.permissions import IsCashier
+>>>>>>> code_refactoing
 from django_filters.rest_framework import DjangoFilterBackend
 from sales.filters import InvoiceFilter
 from rest_framework.views import APIView
@@ -12,19 +16,24 @@ from rest_framework.response import Response
 
 class InvoiceListCreateAPIView(generics.ListCreateAPIView):
     
-    permission_classes = [IsPharmacist]
+    permission_classes = [IsCashier]
+    queryset = Invoice.objects.filter(payment_status="paid")
     serializer_class = InvoiceCreationSerializer
-    queryset = Invoice.objects.all()
     filter_backends = [DjangoFilterBackend]
     filterset_class = InvoiceFilter
     
-
-class InvoiceRetrieveUpdateDestroyAPIView(generics.RetrieveUpdateDestroyAPIView):
-    permission_classes = [IsPharmacist]
-    serializer_class = InvoiceCreationSerializer
-    queryset = Invoice.objects.all()
     
 
+<<<<<<< HEAD
+=======
+class InvoiceRetrieveUpdateDestroyAPIView(generics.RetrieveUpdateDestroyAPIView):
+    permission_classes = [IsCashier]
+    queryset = Invoice.objects.all()
+    serializer_class = InvoiceCreationSerializer
+
+    
+
+>>>>>>> code_refactoing
 class ReturnInvoiceAPIView(APIView):
     def post(self, request):
         """Return invoice (mark as refunded)."""

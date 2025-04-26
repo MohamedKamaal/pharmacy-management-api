@@ -12,14 +12,12 @@ class CategoryAdmin(MPTTModelAdmin):
 
 @register(Medicine)
 class MedicineAdmin(admin.ModelAdmin):
-    list_display = ('international_barcode', 'category', 'price', 'units_per_pack', 'last_discount_percent')
+    list_display = ('international_barcode', 'category', 'price', 'units_per_pack',)
     list_filter = ('category',)
     search_fields = ('international_barcode', 'category__name')
     raw_id_fields = ('category',)
     
-    def price(self, obj):
-        return f"${obj.price:.2f}"
-    price.short_description = 'Price'
+
 
 from django.contrib import admin
 from .models import Batch

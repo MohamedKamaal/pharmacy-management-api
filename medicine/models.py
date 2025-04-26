@@ -10,7 +10,11 @@ from cities_light.models import City
 from django_countries.fields import CountryField
 from decimal import Decimal
 from django.core.validators import MinLengthValidator, MinValueValidator
+<<<<<<< HEAD
 
+=======
+from decimal import Decimal, ROUND_HALF_UP
+>>>>>>> code_refactoing
 
 
 # Create your models here.
@@ -89,14 +93,15 @@ class Medicine(TimeStampedModel):
         "International Barcode",
         max_length=16,
         unique=True,
-        db_index=True
+        db_index=True,
+        validators=[MinLengthValidator(13)]
     )    
     name = models.CharField(unique=True, max_length=50)
     active_ingredient = models.ForeignKey(ActiveIngredient, on_delete=models.CASCADE, related_name="medicines")
     category = models.ForeignKey(Category, on_delete=models.CASCADE, related_name="medicines")
     manufacturer = models.ForeignKey(Manufacturer, on_delete=models.CASCADE, related_name="medicines")
-    last_supplier = models.ForeignKey(Supplier, on_delete=models.CASCADE, related_name="medicines", null=True, blank=True)
 
+<<<<<<< HEAD
     units_per_pack = models.IntegerField(default=1)
     price = models.DecimalField(
         "price in cents",
@@ -108,12 +113,18 @@ class Medicine(TimeStampedModel):
     last_discount_percent = models.DecimalField(
         "Last Discount Percent",
         max_digits=4,  # allows up to 99.99
+=======
+    units_per_pack = models.PositiveSmallIntegerField(default=1)
+    price = models.DecimalField(
+        "price in cents",
+        max_digits=8,
+>>>>>>> code_refactoing
         decimal_places=2,
-        null=True,
-        blank=True,
-        help_text="Percentage discount you got when last purchasing this medicine."
+        validators=[MinValueValidator(0)],
+        help_text="Price of pack"
     )
    
+<<<<<<< HEAD
     
     @property
     def unit_price(self):
@@ -123,6 +134,19 @@ class Medicine(TimeStampedModel):
     def unit_price(self):
         return Decimal(self.price / self.units_per_pack)
     
+=======
+   
+    
+    @property
+    def is_available(self):
+        return self.batches.filter(
+            stock_units__gt=0
+        ).exists()
+        
+    @property
+    def unit_price(self):
+        return (Decimal(self.price) / Decimal(self.units_per_pack)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+>>>>>>> code_refactoing
     
     @property
     def stock(self):
@@ -166,16 +190,25 @@ class Batch(TimeStampedModel):
         if self.stock_units < 0:
             raise ValidationError({"stock_units": "stock units must be positive"})
 
+<<<<<<< HEAD
     @property 
     def price(self):
         return Decimal(self.medicine.unit_price)
+=======
+    
+    @property 
+    def price(self):
+         return self.medicine.unit_price.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+>>>>>>> code_refactoing
     
     @property 
     def is_expired(self):
         return self.expiry_date <= now().date()
+
     @property 
     def has_amount(self):
-        return self.stock_units >0
+        return self.stock_units > 0
+        
     @property
     def stock_packets(self):
         packs = self.stock_units // self.medicine.units_per_pack

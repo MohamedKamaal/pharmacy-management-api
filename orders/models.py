@@ -3,7 +3,11 @@ from django.db import models
 from medicine.models import TimeStampedModel
 from django.core.validators import MinValueValidator, MaxValueValidator
 from medicine.models import Medicine, Batch, Supplier, Manufacturer
+<<<<<<< HEAD
 from decimal import Decimal
+=======
+from decimal import Decimal, ROUND_HALF_UP
+>>>>>>> code_refactoing
 # Create your models here.
 
 
@@ -21,23 +25,32 @@ class Order(TimeStampedModel):
     
         # Calculate totals only if this is an existing order with items
         if self.pk and hasattr(self, 'items'):
-            self.total_after = sum(item.price_item_after for item in self.items.all())
+            self.total_after = round(sum(item.price_item_after for item in self.items.all()),2)
             
         
         super().save(*args, **kwargs)
     
     @property
     def total_before(self):
+<<<<<<< HEAD
         return sum(
            item.price_item for item in self.items.all()
        )
+=======
+            total = sum(item.price_item_before for item in self.items.all())
+            return Decimal(total).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+>>>>>>> code_refactoing
         
     
 
 class OrderItem(models.Model):
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name="items")
     batch = models.ForeignKey(Batch, on_delete=models.CASCADE, related_name="items")
+<<<<<<< HEAD
     quantity = models.IntegerField()
+=======
+    quantity = models.PositiveIntegerField(validators=[MinValueValidator(1)])
+>>>>>>> code_refactoing
     discount = models.DecimalField(
         max_digits=4,
         decimal_places=2,
@@ -51,11 +64,21 @@ class OrderItem(models.Model):
     
     @property
     def price_item_after(self):
+<<<<<<< HEAD
       return Decimal(self.quantity * self.batch.medicine.unit_price * (1 - self.discount/100))
 
     @property
     def price_item(self):
         return Decimal(self.quantity * self.batch.medicine.unit_price)
+=======
+        discount_multiplier = (Decimal(1) - Decimal(self.discount) / Decimal(100))
+        total = Decimal(self.quantity) * self.batch.medicine.unit_price * discount_multiplier
+        return total.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    @property
+    def price_item_before(self):
+        total = Decimal(self.quantity) * self.batch.medicine.unit_price
+        return total.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+>>>>>>> code_refactoing
     
 
     

@@ -1,92 +1,142 @@
 import pytest
-from rest_framework import status
+from django.urls import reverse
 from rest_framework.test import APIClient
-from medicine.models import Batch
-from users.models import User
-from django.utils.timezone import now
+from rest_framework import status
+from django.utils.timezone import  now
 from datetime import timedelta
+from users.tests.factories import UserFactory
 from medicine.tests.factories import BatchFactory
 
 @pytest.fixture
 def pharmacist_user():
-    # Create a test pharmacist user
-    return User.objects.create_user(
-        email="pharmacist@example.com",  # Include the email argument
-        password="password123",
-        role="pharmacist"
-    )
+    return UserFactory(role="pharmacist")
 
 @pytest.fixture
-def client():
+def non_pharmacist_user():
+    return UserFactory(role="cashier")
+
+@pytest.fixture
+def auth_client(pharmacist_user):
+    client = APIClient()
+    client.force_authenticate(user=pharmacist_user)
+    return client
+
+@pytest.fixture
+def unauth_client():
     return APIClient()
 
-@pytest.fixture
-def create_batches():
-    # Create some test batches
-    BatchFactory(barcode="123456", expiry_date=now() - timedelta(days=1), stock_units=10)  # expired
-    BatchFactory(barcode="789101", expiry_date=now() + timedelta(days=30), stock_units=0)  # out of stock
-    BatchFactory(barcode="112233", expiry_date=now() + timedelta(days=30), stock_units=10)  # in stock
-    BatchFactory(barcode="445566", expiry_date=now() + timedelta(days=90), stock_units=10)  # near expiry
+@pytest.mark.django_db
+class TestOutOfStockAPIView:
+    """Tests for OutOfStockAPIView"""
+
+    def test_get_out_of_stock_authenticated(self, auth_client):
+        bat1 = BatchFactory(stock_units=0)  # Out of stock
+        bat2 = BatchFactory(stock_units=10)  # In stock
+
+        url = reverse('out-of-stock')
+        response = auth_client.get(url)
+
+        assert response.status_code == status.HTTP_200_OK
+        assert len(response.data) == 1
+        assert bat1.medicine.name in response.data[0]["medicine"], response.data
+    def test_get_out_of_stock_unauthenticated(self, unauth_client):
+        url = reverse('out-of-stock')
+        response = unauth_client.get(url)
+        assert response.status_code == status.HTTP_401_UNAUTHORIZED
+
+    def test_get_out_of_stock_non_pharmacist(self, auth_client, non_pharmacist_user):
+        auth_client.force_authenticate(user=non_pharmacist_user)
+        url = reverse('out-of-stock')
+        response = auth_client.get(url)
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+
+    def test_get_out_of_stock_empty(self, auth_client):
+        BatchFactory(stock_units=10)  # In stock
+        url = reverse('out-of-stock')
+        response = auth_client.get(url)
+        assert response.status_code == status.HTTP_200_OK
+        assert len(response.data) == 0
 
 @pytest.mark.django_db
-def test_out_of_stock_batches(client, pharmacist_user, create_batches):
-    # Authenticate as pharmacist
-    client.force_authenticate(user=pharmacist_user)
-    
-    # Make a GET request to the view
-    response = client.get("/reports/out-of-stock/")  # Adjust this path based on your urls
-    
-    # Check the status and returned data
-    assert response.status_code == status.HTTP_200_OK
-    assert len(response.data) == 1  # Should only return the batch with stock_units=0
-    assert response.data[0]["barcode"] == "789101"
+class TestExpiredAPIView:
+    """Tests for ExpiredAPIView"""
+
+    def test_get_expired_authenticated(self, auth_client):
+        BatchFactory(expiry_date=now().date() - timedelta(days=1))  # Expired
+        BatchFactory(expiry_date=now().date() + timedelta(days=1))  # Not expired
+
+        url = reverse('expired')
+        response = auth_client.get(url)
+
+        assert response.status_code == status.HTTP_200_OK
+        assert len(response.data) == 1
+        assert response.data[0]['expiry_date'] <= str(now().date())
+
+    def test_get_expired_unauthenticated(self, unauth_client):
+        url = reverse('expired')
+        response = unauth_client.get(url)
+        assert response.status_code == status.HTTP_401_UNAUTHORIZED
+
+    def test_get_expired_non_pharmacist(self, auth_client, non_pharmacist_user):
+        auth_client.force_authenticate(user=non_pharmacist_user)
+        url = reverse('expired')
+        response = auth_client.get(url)
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+
+    def test_get_expired_empty(self, auth_client):
+        BatchFactory(expiry_date=now().date() + timedelta(days=1))
+        url = reverse('expired')
+        response = auth_client.get(url)
+        assert response.status_code == status.HTTP_200_OK
+        assert len(response.data) == 0
 
 @pytest.mark.django_db
-def test_expired_batches(client, pharmacist_user, create_batches):
-    # Authenticate as pharmacist
-    client.force_authenticate(user=pharmacist_user)
-    
-    # Make a GET request to the view
-    response = client.get("/reports/expired/")  # Adjust this path based on your urls
-    
-    # Check the status and returned data
-    assert response.status_code == status.HTTP_200_OK
-    assert len(response.data) == 1  # Should only return the expired batch
-    assert response.data[0]["barcode"] == "123456"
+class TestNearExpireAPIView:
+    """Tests for NearExpireAPIView"""
 
-@pytest.mark.django_db
-def test_near_expire_batches(client, pharmacist_user, create_batches):
-    # Authenticate as pharmacist
-    client.force_authenticate(user=pharmacist_user)
-    
-    # Make a GET request to the view with the `months` query parameter
-    response = client.get("/reports/near-expiry/?months=1")  # Adjust this path based on your urls
-    
-    # Check the status and returned data
-    assert response.status_code == status.HTTP_200_OK
-    assert len(response.data) == 1  # Should only return the batch near expiry (within 1 month)
-    assert response.data[0]["barcode"] == "445566"
-    
-@pytest.mark.django_db
-def test_near_expire_invalid_months(client, pharmacist_user, create_batches):
-    # Authenticate as pharmacist
-    client.force_authenticate(user=pharmacist_user)
-    
-    # Make a GET request to the view with an invalid `months` query parameter
-    response = client.get("/reports/near-expiry/?months=invalid")  # Adjust this path based on your urls
-    
-    # Check for validation error
-    assert response.status_code == status.HTTP_400_BAD_REQUEST
-    assert "Invalid value for 'months'. It must be an integer." in str(response.data)
-    
-@pytest.mark.django_db
-def test_near_expire_negative_months(client, pharmacist_user, create_batches):
-    # Authenticate as pharmacist
-    client.force_authenticate(user=pharmacist_user)
-    
-    # Make a GET request to the view with a negative `months` query parameter
-    response = client.get("/reports/near-expiry/?months=-1")  # Adjust this path based on your urls
-    
-    # Check for validation error
-    assert response.status_code == status.HTTP_400_BAD_REQUEST
-    assert "Months parameter must be a positive integer." in str(response.data)
+    def test_get_near_expire_default_month(self, auth_client):
+        BatchFactory(expiry_date=now().date() + timedelta(days=15))  # Within 1 month
+        BatchFactory(expiry_date=now().date() + timedelta(days=45))  # Beyond 1 month
+
+        url = reverse('near-expiry')
+        response = auth_client.get(url)
+
+        assert response.status_code == status.HTTP_200_OK
+        assert len(response.data) == 1
+
+    def test_get_near_expire_custom_month(self, auth_client):
+        BatchFactory(expiry_date=now().date() + timedelta(days=45))  # Within 2 months
+        BatchFactory(expiry_date=now().date() + timedelta(days=90))  # Beyond 2 months
+
+        url = reverse('near-expiry')
+        response = auth_client.get(f"{url}?months=2")
+
+        assert response.status_code == status.HTTP_200_OK
+        assert len(response.data) == 1
+
+    def test_get_near_expire_invalid_months(self, auth_client):
+        url = reverse('near-expiry')
+
+        response = auth_client.get(f"{url}?months=-1")
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+
+        response = auth_client.get(f"{url}?months=invalid")
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+
+    def test_get_near_expire_unauthenticated(self, unauth_client):
+        url = reverse('near-expiry')
+        response = unauth_client.get(url)
+        assert response.status_code == status.HTTP_401_UNAUTHORIZED
+
+    def test_get_near_expire_non_pharmacist(self, auth_client, non_pharmacist_user):
+        auth_client.force_authenticate(user=non_pharmacist_user)
+        url = reverse('near-expiry')
+        response = auth_client.get(url)
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+
+    def test_get_near_expire_empty(self, auth_client):
+        BatchFactory(expiry_date=now().date() + timedelta(days=90))  # Not near expiry
+        url = reverse('near-expiry')
+        response = auth_client.get(url)
+        assert response.status_code == status.HTTP_200_OK
+        assert len(response.data) == 0

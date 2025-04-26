@@ -5,7 +5,7 @@ from .models import  Order, OrderItem
 class OrderItemInline(admin.StackedInline):
     model = OrderItem
     extra = 1  # Number of empty forms shown by default
-    readonly_fields = ['price_item', 'price_item_after']  # Optional, show calculated fields
+    readonly_fields = ['price_item_after']  # Optional, show calculated fields
 
 
 
