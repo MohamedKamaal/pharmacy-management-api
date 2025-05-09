@@ -1,4 +1,4 @@
-
+[packages]
 django = "*"
 djangorestframework = "*"
 django-allauth = "*"
@@ -22,7 +22,8 @@ pytest-factoryboy = "*"
 python-dateutil = "*"
 python-decouple = "*"
 dj-database-url = "*"
-psycopg2-binary = "*"
 gunicorn = "*"
 psycopg2-binary = "*"
+whitenoise = "*"
 
+[dev-packages]
