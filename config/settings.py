@@ -95,10 +95,16 @@ WSGI_APPLICATION = 'config.wsgi.application'
 
 # Database
 
-import dj_database_url
 
 DATABASES = {
-    'default': dj_database_url.config(default=config('DATABASE_URL'))
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': config('DB_NAME'),  # Fetch database name from .env file
+        'USER': config('DB_USER'),  # Fetch database user from .env file
+        'PASSWORD': config('DB_PASSWORD'),  # Fetch password from .env file
+        'HOST': 'localhost',  # Use 'localhost' if running on the same machine, or provide the IP address of the server
+        'PORT': '5432',  # Default PostgreSQL port
+    }
 }
 
 # Password validation
